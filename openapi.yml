@@ -1,0 +1,389 @@
+openapi: "3.0.0"
+info:
+  version: "1"
+  title: "yt-dvr"
+  description: "API for yt-dvr."
+paths:
+  /settings:
+    get:
+      operationId: "getSettings"
+      description: "Gets the settings for the server."
+      parameters: []
+      responses:
+        200:
+          description: "The current server settings."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    put:
+      operationId: "setSettings"
+      description: "Sets the settings for the server."
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        200:
+          description: "The new settings for the server."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+  /platforms:
+    get:
+      operationId: "getPlatforms"
+      description: "Returns the currently registered platforms."
+      parameters: []
+      responses:
+        200:
+          description: "A list of active platforms."
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Platform"
+    post:
+      operationId: "addPlatform"
+      description: "Adds a new platform."
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Platform"
+      responses:
+        201:
+          description: "The new platform contents."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Platform"
+  /platforms/{platform}:
+    get:
+      operationId: "getPlatform"
+      description: "Returns info about a platform."
+      parameters:
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "The platform info requested."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Platform"
+        404:
+          description: "If the platform isn't known."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: "updatePlatform"
+      description: "Updates the info about a platform."
+      parameters:
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Platform"
+      responses:
+        200:
+          description: "The new platform info."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Platform"
+        404:
+          description: "If the platform isn't known."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: "deletePlatform"
+      description: "Deletes the platform and all associated channels. Recordings remain accessible."
+      parameters:
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        204:
+          description: "If the platform was deleted successfully."
+    post:
+      operationId: "addChannel"
+      description: "Adds a new channel for the platform."
+      parameters:
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Channel"
+      responses:
+        201:
+          description: "The new channel object."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        404:
+          description: "If the platform isn't known."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /platforms/{platform}/{channel}:
+    get:
+      operationId: "getChannel"
+      description: "Returns info about a channel."
+      parameters:
+        - in: "path"
+          name: "channel"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        200:
+          description: "The channel info."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        404:
+          description: "If the channel isn't known."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: "updateChannel"
+      description: "Updates a channel's info."
+      parameters:
+        - in: "path"
+          name: "channel"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Channel"
+      responses:
+        200:
+          description: "The new channel info."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Channel"
+        404:
+          description: "If the channel isn't known."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: "deleteChannel"
+      description: "Deletes a channel. Recordings remain accessible."
+      parameters:
+        - in: "path"
+          name: "channel"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        204:
+          description: "If the channel was deleted successfully."
+  /platforms/{platform}/{channel}/{timestamp}:
+    get:
+      operationId: "getRecording"
+      description: "Returns info about a recording."
+      parameters:
+        - in: "path"
+          name: "channel"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "timestamp"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        200:
+          description: "The recording info."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recording"
+        404:
+          description: "If the recording does not exist."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: "deleteRecording"
+      description: "Deletes a recording from disk."
+      parameters:
+        - in: "path"
+          name: "channel"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "platform"
+          required: true
+          schema:
+            type: "string"
+        - in: "path"
+          name: "timestamp"
+          required: true
+          schema:
+            type: "integer"
+      responses:
+        204:
+          description: "If the recording was deleted successfully."
+components:
+  securitySchemes: {}
+  schemas:
+    Retention:
+      properties:
+        count:
+          nullable: true
+          type: "integer"
+        time:
+          nullable: true
+          type: "integer"
+        size:
+          nullable: true
+          type: "integer"
+    Settings:
+      properties:
+        saveDir:
+          nullable: false
+          type: "string"
+        defaultRetention:
+          nullable: false
+          $ref: "#/components/schemas/Retention"
+        pollInterval:
+          nullable: false
+          type: "integer"
+        saveFormat:
+          nullable: false
+          type: "string"
+    Platform:
+      properties:
+        name:
+          nullable: false
+          type: "string"
+        url:
+          nullable: false
+          type: "string"
+        headers:
+          nullable: false
+          type: "array"
+          items:
+            $ref: "#/components/schemas/Header"
+        platformOptions:
+          nullable: false
+          type: "object"
+        channels:
+          nullable: true
+          type: "array"
+          items:
+            type: "string"
+    Header:
+      properties:
+        key:
+          nullable: false
+          type: "string"
+        value:
+          nullable: false
+          type: "string"
+    Channel:
+      properties:
+        platform:
+          nullable: false
+          type: "string"
+        id:
+          nullable: false
+          type: "string"
+        retention:
+          nullable: true
+          $ref: "#/components/schemas/Retention"
+        quality:
+          nullable: true
+          type: "string"
+        recordings:
+          nullable: true
+          type: "array"
+          items:
+            type: "integer"
+    Error:
+      properties:
+        error:
+          nullable: false
+          type: "string"
+    Recording:
+      properties:
+        title:
+          nullable: false
+          type: "string"
+        platform:
+          nullable: false
+          type: "string"
+        channel:
+          nullable: false
+          type: "string"
+        timestamp:
+          nullable: false
+          type: "integer"
+        duration:
+          nullable: true
+          type: "integer"
+        url:
+          nullable: true
+          type: "string"
+        inProgress:
+          nullable: false
+          type: "boolean"
