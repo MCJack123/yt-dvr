@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Videos{% endblock %}
+{% block content %}
+    <div class="container text-left" style="margin-top: 20px">
+        <div class="row row-cols-auto"><h3>Videos</h3></div>
+        <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
+            {% for video in videos %}
+                {% include 'video_tile.html' %}
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

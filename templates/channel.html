@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Channel {{ channel }} {% endblock %}
+{% block content %}
+    <div class="container text-left" style="margin-top: 20px">
+        <h3>Channel {{ channel }}</h3>
+        <div class="row row-cols-auto"><h4>Videos</h4></div>
+        <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
+            {% for video in videos %}
+                {% include 'video_tile.html' %}
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

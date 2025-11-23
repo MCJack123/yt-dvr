@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ info.title }}{% endblock %}
+{% block content %}
+    <div class="container text-left" style="margin-top: 20px">
+        <video class="ratio ratio-16x9 w-100" controls>
+            <source src="{{ info.path }}" type="video/mp4">
+        </video>
+        <h3>{{ info.title }}</h3>
+        <h5><a class="link-secondary" href="/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
+        <p>{{ formattime(info.timestamp) }}</p>
+    </div>
+{% endblock %}
