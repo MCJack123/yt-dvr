@@ -28,8 +28,26 @@ def assets(subpath):
     return send_file("templates/assets/" + subpath, max_age=30)
 
 @app.route("/files/<path:subpath>")
-def file(subpath):
-    return send_file(config.config.saveDir + subpath, max_age=86400)
+def file(subpath: str):
+    if os.path.isfile(config.config.saveDir + subpath):
+        if subpath.endswith(".part"): return send_file(config.config.saveDir + subpath, max_age=0)
+        else: return send_file(config.config.saveDir + subpath, max_age=86400)
+    else: return (render_template("404.html", message="The requested file does not exist."), 404)
+
+@app.route("/files/<platform>/<channel>/<file>.m3u8")
+def file_m3u8(platform, channel, file):
+    path = ""
+    if os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".ts"):
+        path = file + ".ts"
+    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".ts.part"):
+        path = file + ".ts.part"
+    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".mp4"):
+        path = file + ".mp4"
+    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".mp4.part"):
+        path = file + ".mp4.part"
+    else: return (render_template("404.html", message="The requested file does not exist."), 404)
+    if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:9.97667\n" + path + "\n"
+    else: return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:9.97667\n" + path + "\n#EXT-X-ENDLIST\n"
 
 @app.route("/settings")
 def settings():
@@ -46,14 +64,14 @@ def channel_(channel):
             videos = [info._dump() for info in channels.recordings if info.channel == channel]
             videos.sort(key=lambda info: info["timestamp"], reverse=True)
             return render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
-    return render_template("404.html", message="The channel requested was not found.")
+    return (render_template("404.html", message="The channel requested was not found."), 404)
 
 @app.route("/channels/<channel>/<int:timestamp>")
 def video(channel, timestamp):
     for info in channels.recordings:
         if info.channel == channel and info.timestamp == timestamp:
             return render_template("video.html", info=info._dump(), formattime=formattime)
-    return render_template("404.html", message="The recording requested was not found.")
+    return (render_template("404.html", message="The recording requested was not found."), 404)
 
 @app.route("/stop")
 def stop():

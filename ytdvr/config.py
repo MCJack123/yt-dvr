@@ -30,14 +30,16 @@ class Config:
     defaultRetention: Retention
     channels: list[Channel]
     pollInterval: int
-    saveFormat: str
+    remuxRecordings: bool
+    remuxFormat: str
 
     def __init__(self):
         self.saveDir = "files/"
         self.defaultRetention = Retention()
         self.channels = []
         self.pollInterval = 60
-        self.saveFormat = "mp4"
+        self.remuxRecordings = True
+        self.remuxFormat = "mp4"
         self.platforms = []
 
     def load(self, path: str):
@@ -50,7 +52,8 @@ class Config:
             channel = importlib.import_module("channel")
             self.channels = [channel.Channel(obj=c) for c in dict["channels"]]
             self.pollInterval = dict["pollInterval"]
-            self.saveFormat = dict["saveFormat"]
+            self.remuxRecordings = dict["remuxRecordings"]
+            self.remuxFormat = dict["remuxFormat"]
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:
@@ -59,14 +62,16 @@ class Config:
                 "saveDir": self.saveDir,
                 "defaultRetention": self.defaultRetention._dump(),
                 "pollInterval": self.pollInterval,
-                "saveFormat": self.saveFormat
+                "remuxRecordings": self.remuxRecordings,
+                "remuxFormat": self.remuxFormat
             }
         return {
             "saveDir": self.saveDir,
             "defaultRetention": self.defaultRetention._dump(),
             "channels": [channel._dump() for channel in self.channels],
             "pollInterval": self.pollInterval,
-            "saveFormat": self.saveFormat,
+            "remuxRecordings": self.remuxRecordings,
+            "remuxFormat": self.remuxFormat,
         }
 
     def dumps(self) -> str:

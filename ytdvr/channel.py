@@ -66,7 +66,7 @@ class RecordingInfo:
         self._stop = False
 
     @classmethod
-    def _create_ytdl(cls, dl: YoutubeDL, info: dict, platform: str, channel: str, title: str, completion: Callable):
+    def _create_ytdl(cls, loop: asyncio.EventLoop, dl: YoutubeDL, info: dict, platform: str, channel: str, title: str, completion: Callable):
         """
         Internal - Creates a recording for a yt-dl session.
 
@@ -76,7 +76,7 @@ class RecordingInfo:
         :param channel: The ID of the channel that is being recorded
         :param title: The title of the video
         """
-        self = RecordingInfo(platform, channel, title, cast(int, info["timestamp"]), cast(str, info["original_url"]), platform + "/" + channel + "/" + datetime.datetime.now().isoformat(sep=" ", timespec="seconds").replace(":", "-") + " - " + title + ".mp4", True)
+        self = RecordingInfo(platform, channel, title, int(datetime.datetime.now().timestamp()), cast(str, info["original_url"]), platform + "/" + channel + "/" + datetime.datetime.now().isoformat(sep=" ", timespec="seconds").replace(":", "-") + " - " + title + ".ts", True)
         try: os.makedirs(config.config.saveDir + "/" + platform + "/" + channel)
         except FileExistsError: pass
         dl.params["outtmpl"] = {"default": config.config.saveDir + "/" + self.filename} # TODO: proper path and extension
@@ -84,7 +84,7 @@ class RecordingInfo:
         #dl.params["writesubtitles"] = True
         #dl.params["subtitleslangs"] = ["live_chat"]
         dl.params["wait_for_video"] = (2, 5)
-        self._ytdlProcess = threading.Thread(target=self._ytdlMain, name=self.filename, args=[dl, completion, asyncio.current_task().get_loop()]) # type: ignore
+        self._ytdlProcess = threading.Thread(target=self._ytdlMain, name=self.filename, args=[dl, completion, loop]) # type: ignore
         self._ytdlProcess.start()
         LOG.info(f"Starting recording process (TID {self._ytdlProcess.native_id})")
         return self
@@ -154,21 +154,34 @@ class Channel:
         if "quality" in obj: self.quality = obj["quality"]
         else: self.quality = None
     
-    def download(self, completion: Callable[[RecordingInfo], None]) -> Optional[RecordingInfo]:
+    def _download(self, completion: Callable[[RecordingInfo], None], loop: asyncio.EventLoop, future: asyncio.Future):
+        dl = YoutubeDL(self.ytdlParams) # type: ignore
+        try:
+            info = dl.extract_info(self.url, False)
+        except utils.DownloadError:
+            LOG.info(f"Stream {self.name} is not live")
+            loop.call_soon_threadsafe(future.set_result, None)
+            return
+        dl.params["format"] = self.quality or "bestvideo+bestaudio"
+        try:
+            loop.call_soon_threadsafe(future.set_result, RecordingInfo._create_ytdl(loop, dl, info, info["extractor_key"], self.name, info["description"] if info["title"].find("(live)") != -1 else info["title"], completion)) # type: ignore
+        except BaseException as e:
+            loop.call_soon_threadsafe(future.set_exception, e)
+
+    async def download(self, completion: Callable[[RecordingInfo], None]) -> Optional[RecordingInfo]:
         """
         Attempts to start a recording session for a channel and returns the info
         handle if live.
 
         :returns: A new recording session, or None if the channel isn't live
         """
-        dl = YoutubeDL(self.ytdlParams) # type: ignore
-        try:
-            info = dl.extract_info(self.url, False)
-        except utils.DownloadError:
-            LOG.info(f"Stream {self.name} is not live")
-            return None
-        dl.params["format"] = self.quality or "bestvideo+bestaudio"
-        return RecordingInfo._create_ytdl(dl, info, info["extractor_key"], self.name, info["description"] if info["title"].find("(live)") != -1 else info["title"], completion) # type: ignore
+        future = asyncio.Future()
+        thread = threading.Thread(target=self._download, args=[completion, asyncio.current_task().get_loop(), future]) # type: ignore
+        thread.start()
+        res = await future
+        print(res)
+        thread.join()
+        return res
 
     def _dump(self) -> dict:
         return {

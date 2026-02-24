@@ -1,11 +1,30 @@
 {% extends "base.html" %}
 {% block title %}{{ info.title }}{% endblock %}
 {% block content %}
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script>
+        function loadHls() {
+            var video = document.getElementById('video');
+            // TODO: fix URL replacement
+            var videoSrc = '{{ info.path.replace(".mp4", ".m3u8").replace(".ts", ".m3u8").replace(".webm", ".m3u8").replace(".mkv", ".m3u8") }}';
+            if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
+            } else if (Hls.isSupported()) {
+                var hls = new Hls({
+                    "maxMaxBufferLength": 1,
+                    "backBufferLength": 1,
+                    "progressive": true,
+                });
+                hls.loadSource(videoSrc);
+                hls.attachMedia(video);
+            }
+        }
+    </script>
     <div class="container text-left" style="margin-top: 20px">
-        <video class="ratio ratio-16x9 w-100" controls>
-            <source src="{{ info.path }}" type="video/mp4">
+        <video id="video" class="ratio ratio-16x9 w-100" controls>
+            <source src="{{ info.path }}" type="video/mp4" onerror="loadHls()">
         </video>
-        <h3>{{ info.title }}</h3>
+        <h3><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if info.in_progress else 'none' }};"></span> {{ info.title }}</h3>
         <h5><a class="link-secondary" href="/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
         <p>{{ formattime(info.timestamp) }}</p>
     </div>

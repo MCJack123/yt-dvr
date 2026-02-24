@@ -39,7 +39,7 @@ async def main():
             LOG.warning(f"Detected partial video at {filename}, remuxing")
         channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, False))
     asyncio.create_task(app.run())
-    signal.signal(signal.SIGINT, signal.default_int_handler)
+    #signal.signal(signal.SIGINT, signal.default_int_handler)
     multiprocessing.set_start_method("spawn")
     try:
         while True:
@@ -50,7 +50,7 @@ async def main():
                     next(r for r in channels.recordings if r.channel == channel.name and r.in_progress)
                 except StopIteration:
                     LOG.info(f"Starting recording for channel {channel.name}")
-                    rec = channel.download(updateRecording)
+                    rec = await channel.download(updateRecording)
                     if rec is not None:
                         channels.recordings.append(rec)
                         cur = db.cursor()
