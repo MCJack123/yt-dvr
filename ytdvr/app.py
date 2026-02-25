@@ -29,21 +29,21 @@ def assets(subpath):
 
 @app.route("/files/<path:subpath>")
 def file(subpath: str):
-    if os.path.isfile(config.config.saveDir + subpath):
-        if subpath.endswith(".part"): return send_file(config.config.saveDir + subpath, max_age=0, mimetype="video/mpeg-ts")
-        else: return send_file(config.config.saveDir + subpath, max_age=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None)
+    if os.path.isfile(config.config.saveDir + "/" + subpath):
+        if subpath.endswith(".part"): return send_file(config.config.saveDir + "/" + subpath, max_age=0, mimetype="video/mpeg-ts")
+        else: return send_file(config.config.saveDir + "/" + subpath, max_age=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None)
     else: return (render_template("404.html", message="The requested file does not exist."), 404)
 
 @app.route("/files/<channel>/<file>.m3u8")
 def file_m3u8(channel, file):
     path = ""
-    if os.path.isfile(config.config.saveDir + channel + "/" + file + ".ts"):
+    if os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".ts"):
         path = file + ".ts"
-    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".ts.part"):
+    elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".ts.part"):
         path = file + ".ts.part"
-    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".mp4"):
+    elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4"):
         path = file + ".mp4"
-    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".mp4.part"):
+    elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
     else: return (render_template("404.html", message="The requested file does not exist."), 404)
     if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:9.97667\n" + path + "\n"

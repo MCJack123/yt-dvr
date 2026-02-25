@@ -35,7 +35,7 @@ class Config:
     remuxFormat: str
 
     def __init__(self):
-        self.saveDir = "files/"
+        self.saveDir = "files"
         self.serverPort = 6334
         self.defaultRetention = Retention()
         self.channels = {}

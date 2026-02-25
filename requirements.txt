@@ -2,3 +2,4 @@ yt_dlp
 flask[async]
 hypercorn
 pathvalidate
+typed-ffmpeg

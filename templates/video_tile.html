@@ -1,7 +1,7 @@
 <div class="col col-4">
     <div class="card bg-body-secondary h-100">
         <div class="card-body">
-            <h5 class="card-title"><a href="/channels/{{ video.channel }}/{{ video.timestamp }}">{{ video.title }}</a></h5>
+            <h5 class="card-title"><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if video.in_progress else 'none' }};"></span> <a href="/channels/{{ video.channel }}/{{ video.timestamp }}">{{ video.title }}</a></h5>
             <h6 class="card-text"><a class="link-secondary" href="/channels/{{ video.channel }}">{{ video.channel }}</a></h6>
             <h6 class="card-text">{{ formatdate(video.timestamp) }}</h6>
         </div>

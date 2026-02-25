@@ -9,6 +9,7 @@ import sys
 import signal
 import sqlite3
 import multiprocessing
+import ffmpeg
 
 LOG = logging.getLogger("yt-dvr")
 
@@ -19,9 +20,23 @@ def updateRecording(info: channels.RecordingInfo, platform: str | None = None, c
     if platform is None: platform = info.platform
     if channel is None: channel = info.channel
     if timestamp is None: timestamp = info.timestamp
+    if info.filename.endswith(".ts") and config.config.remuxRecordings:
+        LOG.info("Remuxing container for " + info.title + " (" + info.filename + ")")
+        newname = info.filename.removesuffix(".ts") + ".mp4"
+        try:
+            input = config.config.saveDir + "/" + info.filename
+            if not os.path.exists(input): input += ".part"
+            (ffmpeg
+                .input(input)
+                .output(filename=config.config.saveDir + "/" + newname, f=config.config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True})).run()
+            try: os.remove(input)
+            except: pass
+            info.filename = newname
+        except Exception as e:
+            LOG.error(e)
     cur = db.cursor()
-    cur.execute("UPDATE videos SET platform = ?, channel = ?, title = ?, timestamp = ?, url = ?, filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?",
-                (info.platform, info.channel, info.title, info.timestamp, info.url, info.filename, info.in_progress, platform, channel, timestamp))
+    cur.execute("UPDATE videos SET platform = ?, channel = ?, title = ?, timestamp = ?, url = ?, filename = ?, chat_filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?",
+                (info.platform, info.channel, info.title, info.timestamp, info.url, info.filename, info.chat_filename, info.in_progress, platform, channel, timestamp))
     db.commit()
 
 async def main():
@@ -38,6 +53,20 @@ async def main():
         if in_progress != 0:
             # TODO: remux
             LOG.warning(f"Detected partial video at {filename}, remuxing")
+            newname = filename.removesuffix(".ts") + "." + config.config.remuxFormat
+            try:
+                input = config.config.saveDir + "/" + filename
+                if not os.path.exists(input): input += ".part"
+                (ffmpeg
+                    .input(filename=input)
+                    .output(filename=config.config.saveDir + "/" + newname, f=config.config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True})).run()
+                try: os.remove(input)
+                except: pass
+                filename = newname
+            except Exception as e:
+                LOG.error(e)
+            cur.execute("UPDATE videos SET filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?", (filename, 0, platform, channel, timestamp))
+            db.commit()
         channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False))
     asyncio.create_task(app.run(config.config.serverPort))
     #signal.signal(signal.SIGINT, signal.default_int_handler)

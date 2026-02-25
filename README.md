@@ -6,7 +6,7 @@ Channels are automatically pinged at a specified frequency, and recorded if they
 A small web interface is served via Flask, for basic video playback and service configuration. An external media server is recommended if media organization is important - the interface is only meant for limited usage and is not optimized for multiple users, sorting, etc.
 
 ## Install
-Requires Python (any recent version will do, no idea how old).
+Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed.
 
 Install requirements from `requirements.txt`: `pip install -r requirements.txt`.
 
@@ -21,7 +21,7 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `size`: The maximum cumulative file size, in megabytes.
 - `pollInterval`: The number of seconds to wait between live checks.
 - `remuxRecordings`: Whether to remux recordings after finishing. (Recordings are saved as MPEG-TS for streaming.)
-- `remuxFormat`: If remuxing is enabled, the format to remux to.
+- `remuxFormat`: If remuxing is enabled, the (FFmpeg) format to remux to.
 - `channels`: An object containing channel names and options to record, with the following channel options (optional unless otherwise specified):
   - `url`: The URL to record (required)
     - For YouTube channels, this should be in the format `https://www.youtube.com/@<channel>/live`
