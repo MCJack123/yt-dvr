@@ -39,7 +39,7 @@ async def main():
             # TODO: remux
             LOG.warning(f"Detected partial video at {filename}, remuxing")
         channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False))
-    asyncio.create_task(app.run())
+    asyncio.create_task(app.run(config.config.serverPort))
     #signal.signal(signal.SIGINT, signal.default_int_handler)
     multiprocessing.set_start_method("spawn")
     try:

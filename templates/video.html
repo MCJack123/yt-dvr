@@ -19,6 +19,13 @@
                 hls.attachMedia(video);
             }
         }
+
+        function deleteVideo() {
+            fetch("/api/channels/{{ info.channel }}/{{ info.timestamp }}", {method: "DELETE"}).then(res => {
+                if (res.ok) location.href = "/channels/{{ info.channel }}";
+                else return res.json();
+            }).then(body => alert("Failed to delete video: " + body.error));
+        }
     </script>
     <div class="container text-left" style="margin-top: 20px">
         <video id="video" class="ratio ratio-16x9 w-100" controls>
@@ -27,5 +34,22 @@
         <h3><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if info.in_progress else 'none' }};"></span> {{ info.title }}</h3>
         <h5><a class="link-secondary" href="/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
         <p>{{ formattime(info.timestamp) }}</p>
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteVideoModal">Delete</button>
+    </div>
+    <div class="modal fade" id="deleteVideoModal" tabindex="-1" aria-labelledby="deleteVideoModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="deleteVideoModalLabel">Delete video</h1>
+                </div>
+                <div class="modal-body">
+                    Are you sure you wish to delete this video? This operation cannot be undone.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteVideo()">Confirm</button>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}

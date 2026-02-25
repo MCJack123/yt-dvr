@@ -27,6 +27,7 @@ class Retention:
 
 class Config:
     saveDir: str
+    serverPort: int
     defaultRetention: Retention
     channels: dict[str, Channel]
     pollInterval: int
@@ -35,6 +36,7 @@ class Config:
 
     def __init__(self):
         self.saveDir = "files/"
+        self.serverPort = 6334
         self.defaultRetention = Retention()
         self.channels = {}
         self.pollInterval = 60
@@ -48,6 +50,7 @@ class Config:
             with open(path, "r") as file:
                 dict = json.load(file)
             self.saveDir = dict["saveDir"]
+            self.serverPort = dict["serverPort"]
             self.defaultRetention = Retention(dict["defaultRetention"])
             channel = importlib.import_module("channel")
             self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
@@ -60,6 +63,7 @@ class Config:
         if partial:
             return {
                 "saveDir": self.saveDir,
+                "serverPort": self.serverPort,
                 "defaultRetention": self.defaultRetention._dump(),
                 "pollInterval": self.pollInterval,
                 "remuxRecordings": self.remuxRecordings,
@@ -67,6 +71,7 @@ class Config:
             }
         return {
             "saveDir": self.saveDir,
+            "serverPort": self.serverPort,
             "defaultRetention": self.defaultRetention._dump(),
             "channels": {k: channel._dump() for k, channel in self.channels.items()},
             "pollInterval": self.pollInterval,

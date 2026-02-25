@@ -14,6 +14,7 @@ Install requirements from `requirements.txt`: `pip install -r requirements.txt`.
 yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.json`). The config file contains the following keys:
 
 - `saveDir`: The directory to store recordings in.
+- `serverPort`: The port to host the internal server on.
 - `defaultRetention`: An object containing keys indicating the maximum amounts to keep of a certain channel by default. Files will be deleted when any of the retention counts are hit, starting with the oldest. Null values mean the category is ignored/infinity - if all are null, files will never be deleted.
   - `count`: The maximum number of recordings to keep.
   - `time`: The maximum age of a recording, in days.
@@ -33,7 +34,9 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
 The video database is stored in a SQLite database stored at `$YTDVR_DB`, default `ytdvr.db`.
 
 ## Running
-`python ytdvr/server.py`
+Run `python ytdvr/server.py`.
+
+The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
 
 ## License
 yt-dvr is licensed under the GNU Affero General Public License v3.0. You are allowed to host, modify and redistribute this code at will, as long as source code is always provided, including by public server hosts.

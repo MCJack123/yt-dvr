@@ -1,13 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Channel {{ channel }} {% endblock %}
 {% block content %}
+    <script>
+        function deleteChannel() {
+            fetch("/api/channels/{{ channel }}", {method: "DELETE"}).then(res => {
+                if (res.ok) location.href = "/channels";
+                else return res.json();
+            }).then(body => alert("Failed to delete channel: " + body.error));
+        }
+    </script>
     <div class="container text-left" style="margin-top: 20px">
-        <h3>Channel {{ channel }}</h3>
+        <div class="row justify-content-between row-cols-auto">
+            <h3>Channel {{ channel }}</h3>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteChannelModal">Delete</button>
+        </div>
+        <div class="row row-cols-auto"><h4>Settings</h4></div>
         <div class="row row-cols-auto"><h4>Videos</h4></div>
         <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
             {% for video in videos %}
                 {% include 'video_tile.html' %}
             {% endfor %}
+        </div>
+    </div>
+    <div class="modal fade" id="deleteChannelModal" tabindex="-1" aria-labelledby="deleteChannelModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="deleteChannelModalLabel">Delete channel {{ channel }} </h1>
+                </div>
+                <div class="modal-body">
+                    Are you sure you wish to delete the channel {{ channel }}?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteChannel()">Confirm</button>
+                </div>
+            </div>
         </div>
     </div>
 {% endblock %}
