@@ -34,16 +34,16 @@ def file(subpath: str):
         else: return send_file(config.config.saveDir + subpath, max_age=86400)
     else: return (render_template("404.html", message="The requested file does not exist."), 404)
 
-@app.route("/files/<platform>/<channel>/<file>.m3u8")
-def file_m3u8(platform, channel, file):
+@app.route("/files/<channel>/<file>.m3u8")
+def file_m3u8(channel, file):
     path = ""
-    if os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".ts"):
+    if os.path.isfile(config.config.saveDir + channel + "/" + file + ".ts"):
         path = file + ".ts"
-    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".ts.part"):
+    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".ts.part"):
         path = file + ".ts.part"
-    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".mp4"):
+    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".mp4"):
         path = file + ".mp4"
-    elif os.path.isfile(config.config.saveDir + platform + "/" + channel + "/" + file + ".mp4.part"):
+    elif os.path.isfile(config.config.saveDir + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
     else: return (render_template("404.html", message="The requested file does not exist."), 404)
     if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:9.97667\n" + path + "\n"
@@ -55,16 +55,17 @@ def settings():
 
 @app.route("/channels")
 def channels_():
-    return render_template("channels.html", channels=[c._dump() for c in config.config.channels])
+    return render_template("channels.html", channels=[(k, c._dump()) for k, c in config.config.channels.items()])
 
 @app.route("/channels/<channel>")
 def channel_(channel):
-    for c in config.config.channels:
-        if c.name == channel:
-            videos = [info._dump() for info in channels.recordings if info.channel == channel]
-            videos.sort(key=lambda info: info["timestamp"], reverse=True)
-            return render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
-    return (render_template("404.html", message="The channel requested was not found."), 404)
+    try:
+        c = config.config.channels[channel]
+        videos = [info._dump() for info in channels.recordings if info.channel == channel]
+        videos.sort(key=lambda info: info["timestamp"], reverse=True)
+        return render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
+    except KeyError:
+        return (render_template("404.html", message="The channel requested was not found."), 404)
 
 @app.route("/channels/<channel>/<int:timestamp>")
 def video(channel, timestamp):
@@ -94,7 +95,7 @@ def api_settings():
 @app.route("/api/channels", methods=["GET", "POST"])
 def api_channels():
     if request.method == "GET":
-        return [c._dump() for c in config.config.channels]
+        return {k: c._dump() for k, c in config.config.channels.items()}
     elif request.method == "POST":
         return ("", 204)
     else: return ({"error": "Invalid request method"}, 400)
@@ -102,10 +103,10 @@ def api_channels():
 @app.route("/api/channels/<channel>", methods=["GET", "PUT", "DELETE"])
 def api_channel(channel):
     if request.method == "GET":
-        for c in config.config.channels:
-            if c.name == channel:
-                return c._dump()
-        return ({"error": "No such platform"}, 404)
+        try:
+            return config.config.channels[channel]._dump()
+        except KeyError:
+            return ({"error": "No such platform"}, 404)
     elif request.method == "PUT":
         return ("", 204)
     elif request.method == "DELETE":

@@ -28,7 +28,7 @@ class Retention:
 class Config:
     saveDir: str
     defaultRetention: Retention
-    channels: list[Channel]
+    channels: dict[str, Channel]
     pollInterval: int
     remuxRecordings: bool
     remuxFormat: str
@@ -36,7 +36,7 @@ class Config:
     def __init__(self):
         self.saveDir = "files/"
         self.defaultRetention = Retention()
-        self.channels = []
+        self.channels = {}
         self.pollInterval = 60
         self.remuxRecordings = True
         self.remuxFormat = "mp4"
@@ -50,7 +50,7 @@ class Config:
             self.saveDir = dict["saveDir"]
             self.defaultRetention = Retention(dict["defaultRetention"])
             channel = importlib.import_module("channel")
-            self.channels = [channel.Channel(obj=c) for c in dict["channels"]]
+            self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
             self.pollInterval = dict["pollInterval"]
             self.remuxRecordings = dict["remuxRecordings"]
             self.remuxFormat = dict["remuxFormat"]
@@ -68,7 +68,7 @@ class Config:
         return {
             "saveDir": self.saveDir,
             "defaultRetention": self.defaultRetention._dump(),
-            "channels": [channel._dump() for channel in self.channels],
+            "channels": {k: channel._dump() for k, channel in self.channels.items()},
             "pollInterval": self.pollInterval,
             "remuxRecordings": self.remuxRecordings,
             "remuxFormat": self.remuxFormat,

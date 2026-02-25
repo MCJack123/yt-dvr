@@ -7,7 +7,7 @@
             <div class="col col-auto"><button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addChannelModal">+ Add</button></div>
         </div>
         <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
-            {% for channel in channels %}
+            {% for name, channel in channels %}
                 {% include 'channel_tile.html' %}
             {% endfor %}
         </div>

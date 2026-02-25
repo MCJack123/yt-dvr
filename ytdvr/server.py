@@ -32,31 +32,35 @@ async def main():
     config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
     db = sqlite3.connect(os.getenv("YTDVR_DB") or "./ytdvr.db")
     cur = db.cursor()
-    res = cur.execute("SELECT platform, channel, title, timestamp, url, filename, in_progress FROM videos")
-    for platform, channel, title, timestamp, url, filename, in_progress in res.fetchall():
+    cur.execute("CREATE TABLE IF NOT EXISTS videos (platform TEXT, channel TEXT, title TEXT, timestamp INTEGER, url TEXT, filename TEXT, chat_filename TEXT, in_progress INTEGER)")
+    res = cur.execute("SELECT platform, channel, title, timestamp, url, filename, chat_filename, in_progress FROM videos")
+    for platform, channel, title, timestamp, url, filename, chat_filename, in_progress in res.fetchall():
         if in_progress != 0:
             # TODO: remux
             LOG.warning(f"Detected partial video at {filename}, remuxing")
-        channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, False))
+        channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False))
     asyncio.create_task(app.run())
     #signal.signal(signal.SIGINT, signal.default_int_handler)
     multiprocessing.set_start_method("spawn")
     try:
         while True:
             LOG.info("Checking channels for liveness")
-            for channel in config.config.channels:
-                LOG.debug(f"Checking channel {channel.name}")
+            for name, channel in config.config.channels.items():
+                LOG.debug(f"Checking channel {name}")
                 try:
-                    next(r for r in channels.recordings if r.channel == channel.name and r.in_progress)
+                    next(r for r in channels.recordings if r.channel == name and r.in_progress)
                 except StopIteration:
-                    LOG.info(f"Starting recording for channel {channel.name}")
-                    rec = await channel.download(updateRecording)
-                    if rec is not None:
+                    ok, arg = await channel.check_live()
+                    if ok:
+                        LOG.info(f"Starting recording for channel {name}")
+                        rec = await channel.download(name, arg, updateRecording)
                         channels.recordings.append(rec)
                         cur = db.cursor()
-                        cur.execute("INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?, ?)",
-                                    (rec.platform, rec.channel, rec.title, rec.timestamp, rec.url, rec.filename, rec.in_progress))
+                        cur.execute("INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                                    (rec.platform, rec.channel, rec.title, rec.timestamp, rec.url, rec.filename, rec.chat_filename, rec.in_progress))
                         db.commit()
+                    else:
+                        LOG.info(f"Stream {name} is not live")
             LOG.info("Done checking")
             await asyncio.sleep(config.config.pollInterval)
     except KeyboardInterrupt:
