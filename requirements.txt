@@ -1,5 +1,4 @@
 yt_dlp
-flask[async]
-hypercorn
+quart
 pathvalidate
 typed-ffmpeg

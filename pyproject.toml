@@ -1,0 +1,16 @@
+[project]
+name = "yt-dvr"
+description = "A service to automatically record livestreams from various platforms, backed by yt-dlp"
+version = "0.1"
+authors = [{name = "JackMacWindows"}]
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+dependencies = [
+    "yt_dlp",
+    "quart",
+    "pathvalidate",
+    "typed-ffmpeg"
+]
+
+[project.scripts]
+yt-dvr = "server:main_cli"

@@ -1,19 +1,23 @@
 import app
 import config
-import time
 import channel as channels
 import asyncio
 import logging
 import os
-import sys
 import signal
 import sqlite3
 import multiprocessing
 import ffmpeg
+from typing import Any
 
 LOG = logging.getLogger("yt-dvr")
 
 db: sqlite3.Connection
+
+shutdown_event = asyncio.Event()
+
+def _signal_handler(*_: Any) -> None:
+    shutdown_event.set()
 
 def updateRecording(info: channels.RecordingInfo, platform: str | None = None, channel: str | None = None, timestamp: int | None = None):
     global db
@@ -68,11 +72,11 @@ async def main():
             cur.execute("UPDATE videos SET filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?", (filename, 0, platform, channel, timestamp))
             db.commit()
         channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False))
-    asyncio.create_task(app.run(config.config.serverPort))
-    #signal.signal(signal.SIGINT, signal.default_int_handler)
+    asyncio.create_task(app.run(config.config.serverPort, shutdown_event.wait))
+    signal.signal(signal.SIGINT, _signal_handler)
     multiprocessing.set_start_method("spawn")
     try:
-        while True:
+        while not shutdown_event.is_set():
             LOG.info("Checking channels for liveness")
             for name, channel in config.config.channels.items():
                 LOG.debug(f"Checking channel {name}")
@@ -91,7 +95,7 @@ async def main():
                     else:
                         LOG.info(f"Stream {name} is not live")
             LOG.info("Done checking")
-            await asyncio.sleep(config.config.pollInterval)
+            await asyncio.wait_for(shutdown_event.wait(), timeout=config.config.pollInterval)
     except KeyboardInterrupt:
         LOG.warning("Caught interrupt, exiting")
         for r in channels.recordings: r.stop()
@@ -102,6 +106,9 @@ async def main():
         for r in channels.recordings: r.abort()
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         raise e
+
+def main_cli():
+    asyncio.run(main())
 
 if __name__ == "__main__":
     LOG.setLevel(logging.DEBUG)

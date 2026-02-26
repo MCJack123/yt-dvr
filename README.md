@@ -3,7 +3,7 @@ A service to automatically record livestreams from various platforms, backed by 
 
 Channels are automatically pinged at a specified frequency, and recorded if they are live. Recordings are handled by yt-dlp, supporting hundreds of platforms, with specific support for certain platform features (e.g. chat).
 
-A small web interface is served via Flask, for basic video playback and service configuration. An external media server is recommended if media organization is important - the interface is only meant for limited usage and is not optimized for multiple users, sorting, etc.
+A small web interface is served via Quart, for basic video playback and service configuration. An external media server is recommended if media organization is important - the interface is only meant for limited usage and is not optimized for multiple users, sorting, etc.
 
 ## Install
 Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed.

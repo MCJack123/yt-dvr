@@ -1,16 +1,14 @@
-from flask import Flask, request, send_file, render_template
-from asgiref.wsgi import WsgiToAsgi
+from quart import Quart, request, send_file, render_template
 import config
-from hypercorn import config as hypercorn_config
-from hypercorn.asyncio import serve
 import logging
 import os
 import datetime
 import channel as channels
+from typing import Awaitable, Callable, Any
 
 LOG = logging.getLogger("yt-dvr")
 
-app = Flask("yt-dvr")
+app = Quart("yt-dvr")
 app.logger.setLevel(logging.DEBUG)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
@@ -18,24 +16,24 @@ def formattime(timestamp) -> str: return datetime.datetime.fromtimestamp(timesta
 def formatdate(timestamp) -> str: return datetime.date.fromtimestamp(timestamp).strftime("%x")
 
 @app.route("/")
-def home():
+async def home():
     videos = [info._dump() for info in channels.recordings]
     videos.sort(key=lambda info: info["timestamp"], reverse=True)
-    return render_template("index.html", videos=videos, formatdate=formatdate)
+    return await render_template("index.html", videos=videos, formatdate=formatdate)
 
 @app.route("/assets/<path:subpath>")
-def assets(subpath):
-    return send_file("templates/assets/" + subpath, max_age=30)
+async def assets(subpath):
+    return await send_file("templates/assets/" + subpath, cache_timeout=30)
 
 @app.route("/files/<path:subpath>")
-def file(subpath: str):
+async def file(subpath: str):
     if os.path.isfile(config.config.saveDir + "/" + subpath):
-        if subpath.endswith(".part"): return send_file(config.config.saveDir + "/" + subpath, max_age=0, mimetype="video/mpeg-ts")
-        else: return send_file(config.config.saveDir + "/" + subpath, max_age=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None)
-    else: return (render_template("404.html", message="The requested file does not exist."), 404)
+        if subpath.endswith(".part"): return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=0, mimetype="video/mpeg-ts", conditional=True)
+        else: return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None, conditional=True)
+    else: return (await render_template("404.html", message="The requested file does not exist."), 404)
 
 @app.route("/files/<channel>/<file>.m3u8")
-def file_m3u8(channel, file):
+async def file_m3u8(channel, file):
     path = ""
     if os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".ts"):
         path = file + ".ts"
@@ -45,51 +43,51 @@ def file_m3u8(channel, file):
         path = file + ".mp4"
     elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
-    else: return (render_template("404.html", message="The requested file does not exist."), 404)
+    else: return (await render_template("404.html", message="The requested file does not exist."), 404)
     if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:9.97667\n" + path + "\n"
     else: return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:9.97667\n" + path + "\n#EXT-X-ENDLIST\n"
 
 @app.route("/settings")
-def settings():
-    return render_template("settings.html", settings=config.config._dump(True))
+async def settings():
+    return await render_template("settings.html", settings=config.config._dump(True))
 
 @app.route("/channels")
-def channels_():
-    return render_template("channels.html", channels=[(k, c._dump()) for k, c in config.config.channels.items()])
+async def channels_():
+    return await render_template("channels.html", channels=[(k, c._dump()) for k, c in config.config.channels.items()])
 
 @app.route("/channels/<channel>")
-def channel_(channel):
+async def channel_(channel):
     try:
         c = config.config.channels[channel]
         videos = [info._dump() for info in channels.recordings if info.channel == channel]
         videos.sort(key=lambda info: info["timestamp"], reverse=True)
-        return render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
+        return await render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
     except KeyError:
-        return (render_template("404.html", message="The channel requested was not found."), 404)
+        return (await render_template("404.html", message="The channel requested was not found."), 404)
 
 @app.route("/channels/<channel>/<int:timestamp>")
-def video(channel, timestamp):
+async def video(channel, timestamp):
     for info in channels.recordings:
         if info.channel == channel and info.timestamp == timestamp:
-            return render_template("video.html", info=info._dump(), formattime=formattime)
-    return (render_template("404.html", message="The recording requested was not found."), 404)
+            return await render_template("video.html", info=info._dump(), formattime=formattime)
+    return (await render_template("404.html", message="The recording requested was not found."), 404)
 
 @app.route("/stop")
-def stop():
+async def stop():
     for r in channels.recordings: r.stop()
     config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
     os._exit(0)
 
 @app.route("/api")
-def api():
+async def api():
     return {"data": "Hello World!"}
 
 @app.route("/api/settings", methods=["GET", "PUT"])
-def api_settings():
+async def api_settings():
     if request.method == "GET":
         return config.config._dump(True)
     elif request.method == "PUT":
-        data = request.json
+        data = await request.json
         if "saveDir" in data:
             if type(data["saveDir"]) != str: return ({"error": "'saveDir' not a string"}, 400)
             config.config.saveDir = data["saveDir"]
@@ -112,11 +110,11 @@ def api_settings():
     else: return ({"error": "Invalid request method"}, 405)
 
 @app.route("/api/channels", methods=["GET", "POST"])
-def api_channels():
+async def api_channels():
     if request.method == "GET":
         return {k: c._dump() for k, c in config.config.channels.items()}
     elif request.method == "POST":
-        data = request.json
+        data = await request.json
         if not ("name" in data) or type(data["name"]) != str: return ({"error": "'name' not a string"}, 400)
         if not ("url" in data) or type(data["url"]) != str: return ({"error": "'url' not a string"}, 400)
         # TODO: check URL
@@ -138,14 +136,14 @@ def api_channels():
     else: return ({"error": "Invalid request method"}, 405)
 
 @app.route("/api/channels/<channel>", methods=["GET", "PUT", "DELETE"])
-def api_channel(channel):
+async def api_channel(channel):
     if request.method == "GET":
         try:
             return config.config.channels[channel]._dump()
         except KeyError:
             return ({"error": "No such channel"}, 404)
     elif request.method == "PUT":
-        data = request.json
+        data = await request.json
         c = None
         try:
             c = config.config.channels[channel]
@@ -182,11 +180,11 @@ def api_channel(channel):
     else: return ({"error": "Invalid request method"}, 405)
 
 @app.route("/api/channels/<channel>/videos")
-def api_channel_videos(channel):
+async def api_channel_videos(channel):
     return [info._dump() for info in channels.recordings if info.channel == channel]
 
 @app.route("/api/channels/<channel>/<int:timestamp>", methods=["GET", "DELETE"])
-def api_video(channel, timestamp):
+async def api_video(channel, timestamp):
     if request.method == "GET":
         #try:
         #    timestamp = int(timestamp)
@@ -214,13 +212,11 @@ def api_video(channel, timestamp):
     else: return ({"error": "Invalid request method"}, 405)
 
 @app.route("/api/videos")
-def api_videos():
+async def api_videos():
     retval = [info._dump() for info in channels.recordings]
     retval.sort(key=lambda info: info["timestamp"], reverse=True)
     return retval
 
-def run(port: int | None = None):
-    config = hypercorn_config.Config()
-    if port is not None: config.bind = "0.0.0.0:" + str(port)
+def run(port: int | None = None, shutdown: Callable[..., Awaitable[Any | None]] | None = None):
     LOG.info("Starting yt-dvr web interface")
-    return serve(WsgiToAsgi(app), config)
+    return app.run_task(port=port if port is not None else 6334, shutdown_trigger=shutdown)
