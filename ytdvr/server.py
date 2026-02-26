@@ -95,7 +95,8 @@ async def main():
                     else:
                         LOG.info(f"Stream {name} is not live")
             LOG.info("Done checking")
-            await asyncio.wait_for(shutdown_event.wait(), timeout=config.config.pollInterval)
+            try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.config.pollInterval)
+            except TimeoutError: pass
     except KeyboardInterrupt:
         LOG.warning("Caught interrupt, exiting")
         for r in channels.recordings: r.stop()
