@@ -30,8 +30,10 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `getChat`: Whether to download chat automatically (only supported on some platforms) (required, default false)
   - `platform`: An override for platform support (TODO: is this necessary?)
   - `quality`: The yt-dlp quality format to record at (default `bestaudio+bestvideo`)
-  - `retention`: An alternate `defaultRetention` object for this channel only
+  - `retention`: An alternate retention configuration for this channel only - if set it overrides the defaults completely
   - `ytdlParams`: An object containing parameters to pass to yt-dlp, in API format (see https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py)
+
+These settings can be configured through the web interface.
 
 The video database is stored in a SQLite database stored at `$YTDVR_DB`, default `ytdvr.db`.
 

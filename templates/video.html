@@ -22,7 +22,7 @@
 
         function deleteVideo() {
             fetch("/api/channels/{{ info.channel }}/{{ info.timestamp }}", {method: "DELETE"}).then(res => {
-                if (res.ok) location.href = "/channels/{{ info.channel }}";
+                if (res.ok) history.back();
                 else return res.json();
             }).then(body => alert("Failed to delete video: " + body.error));
         }

@@ -1,7 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Channel {{ channel }} {% endblock %}
 {% block content %}
+    <style>
+        .accordion {
+            --bs-accordion-active-bg: transparent !important;
+        }
+
+        .accordion-button, .accordion-header {
+            --bs-accordion-btn-focus-box-shadow: none;
+        }
+    </style>
     <script>
+        function updateChannel() {
+            if (document.getElementById("ytdlParams").value !== "") {
+                try {
+                    let v = JSON.parse(document.getElementById("ytdlParams").value);
+                    if (typeof v !== "object" || v instanceof Array) {
+                        alert("Please enter a valid JSON object into yt-dl parameters.");
+                        return;
+                    }
+                } catch {
+                    alert("Please enter a valid JSON object into yt-dl parameters.");
+                    return;
+                }
+            }
+            fetch("/api/channels/{{ channel }}", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    url: document.getElementById("url").value,
+                    platform: document.getElementById("platform").value || null,
+                    quality: document.getElementById("quality").value || null,
+                    getChat: document.getElementById("getChat").checked,
+                    retention: document.getElementById("retention").checked ? {
+                        count: parseInt(document.getElementById("count").value) > 0 ? parseInt(document.getElementById("count").value) : null,
+                        size: parseInt(document.getElementById("size").value) > 0 ? parseInt(document.getElementById("size").value) : null,
+                        time: parseInt(document.getElementById("time").value) > 0 ? parseInt(document.getElementById("time").value) : null
+                    } : null,
+                    ytdlParams: document.getElementById("ytdlParams").value !== "" ? JSON.parse(document.getElementById("ytdlParams").value) : null
+                })
+            }).then(res => {
+                if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
+            });
+        }
+
         function deleteChannel() {
             fetch("/api/channels/{{ channel }}", {method: "DELETE"}).then(res => {
                 if (res.ok) location.href = "/channels";
@@ -10,12 +52,69 @@
         }
     </script>
     <div class="container text-left" style="margin-top: 20px">
-        <div class="row justify-content-between row-cols-auto">
+        <div class="row justify-content-between row-cols-auto mb-3">
             <h3>Channel {{ channel }}</h3>
-            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteChannelModal">Delete</button>
         </div>
-        <div class="row row-cols-auto"><h4>Settings</h4></div>
-        <div class="row row-cols-auto"><h4>Videos</h4></div>
+        <div class="row accordion accordion-flush mb-3" id="settingsAccordion">
+            <div class="accordion-item">
+                <h4 class="accordion-header" id="settingsHeader">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSettings" aria-expanded="true" aria-controls="collapseSettings">
+                        <h4 style="margin-left: -1.4rem">Settings</h4>
+                    </button>
+                </h4>
+                <div id="collapseSettings" class="accordion-collapse collapse" aria-labelledby="settingsHeader" data-bs-parent="#settingsAccordion">
+                    <div class="accordion-body">
+                        <form>
+                            <div class="mb-3">
+                                <label for="url" class="form-label">URL</label>
+                                <input type="text" class="form-control" id="url" value="{{ contents.url }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="platform" class="form-label">Platform</label>
+                                <input type="text" class="form-control" id="platform" value="{{ contents.platform or '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="quality" class="form-label">Quality</label>
+                                <input type="text" class="form-control" id="quality" value="{{ contents.quality or '' }}">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="getChat" checked="{{ 'true' if contents.getChat else 'false' }}">
+                                <label class="form-check-label" for="getChat">Get chat?</label>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="retention" checked="{{ 'true' if contents.retention else 'false' }}" data-bs-toggle="collapse" data-bs-target="#retentionCollapse">
+                                <label class="form-check-label" for="retention">Override retention policy</label>
+                            </div>
+                            <div class="mb-3 collapse {{ 'show' if contents.retention else '' }}" id="retentionCollapse">
+                                <div class="row">
+                                    <div class="col">
+                                        <label for="count" class="form-label">Count</label>
+                                        <input type="number" class="form-control" id="count" value="{{ contents.count }}">
+                                    </div>
+                                    <div class="col">
+                                        <label for="size" class="form-label">Size (megabytes)</label>
+                                        <input type="number" class="form-control" id="size" value="{{ contents.size }}">
+                                    </div>
+                                    <div class="col">
+                                        <label for="time" class="form-label">Time (days)</label>
+                                        <input type="number" class="form-control" id="time" value="{{ contents.time }}">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="ytdlParams" class="form-label">yt-dl parameters (JSON - see <a href="https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py">yt-dlp converter</a>)</label>
+                                <textarea id="ytdlParams" class="form-control">{{ ytdlParams }}</textarea>
+                            </div>
+                            <div class="row row-cols-auto justify-content-between">
+                                <button type="button" class="btn btn-primary" onclick="updateChannel()">Update</button>
+                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteChannelModal">Delete</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row row-cols-auto mb-3"><h4>Videos</h4></div>
         <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
             {% for video in videos %}
                 {% include 'video_tile.html' %}
@@ -35,6 +134,18 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-danger" onclick="deleteChannel()">Confirm</button>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast" id="updatedToast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <img src="..." class="rounded me-2" alt="...">
+                <strong class="me-auto">Updated settings</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                The channel info has been updated successfully.
             </div>
         </div>
     </div>

@@ -18,6 +18,7 @@ def _signal_handler(*_: Any) -> None:
 async def retention_watcher():
     while not shutdown_event.is_set():
         LOG.info("Scanning retention for all channels")
+        # TODO: should in progress videos be exempt? would complicate code structure
         for name, channel in config.channels.items():
             retention = channel.retention or config.defaultRetention
             if retention.count is not None or retention.size is not None or retention.time is not None:
@@ -33,7 +34,8 @@ async def retention_watcher():
                     total_size = 0
                     for v in videos:
                         try:
-                            total_size = total_size + os.path.getsize(config.saveDir + "/" + v.filename)
+                            try: total_size = total_size + os.path.getsize(config.saveDir + "/" + v.filename)
+                            except: total_size = total_size + os.path.getsize(config.saveDir + "/" + v.filename + ".part")
                             if v.chat_filename is not None: total_size = total_size + os.path.getsize(config.saveDir + "/" + v.chat_filename)
                         except: pass
                     while len(videos) > 0 and total_size > retention.size * 1000000:

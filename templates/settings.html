@@ -1,7 +1,118 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
 {% block content %}
+    <script>
+        function updateSettings() {
+            fetch("/api/settings", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    saveDir: document.getElementById("saveDir").value,
+                    serverPort: parseInt(document.getElementById("serverPort").value),
+                    logLevel: document.getElementById("logLevel").value,
+                    pollInterval: parseInt(document.getElementById("pollInterval").value),
+                    remuxRecordings: document.getElementById("remuxRecordings").checked,
+                    remuxFormat: document.getElementById("remuxFormat").value,
+                    defaultRetention: {
+                        count: parseInt(document.getElementById("default_count").value) > 0 ? parseInt(document.getElementById("default_count").value) : null,
+                        size: parseInt(document.getElementById("default_size").value) > 0 ? parseInt(document.getElementById("default_size").value) : null,
+                        time: parseInt(document.getElementById("default_time").value) > 0 ? parseInt(document.getElementById("default_time").value) : null
+                    },
+                    globalRetention: {
+                        count: parseInt(document.getElementById("global_count").value) > 0 ? parseInt(document.getElementById("global_count").value) : null,
+                        size: parseInt(document.getElementById("global_size").value) > 0 ? parseInt(document.getElementById("global_size").value) : null,
+                        time: parseInt(document.getElementById("global_time").value) > 0 ? parseInt(document.getElementById("global_time").value) : null
+                    },
+                })
+            }).then(res => {
+                if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
+            });
+        }
+    </script>
     <div class="container text-left" style="margin-top: 20px">
-        
+        <div class="row row-cols-auto mb-3">
+            <h3>Settings</h3>
+        </div>
+        <form class="row">
+            <div class="mb-3">
+                <label for="saveDir" class="form-label">Save directory</label>
+                <input type="text" class="form-control" id="saveDir" value="{{ settings.saveDir }}">
+            </div>
+            <div class="mb-3">
+                <label for="serverPort" class="form-label">Server port</label>
+                <input type="number" class="form-control" id="serverPort" value="{{ settings.serverPort }}">
+            </div>
+            <div class="mb-3">
+                <label for="logLevel" class="form-label">Log level</label>
+                <select id="logLevel" class="form-select" aria-label="Log level">
+                    <option value="DEBUG" {{ "selected" if settings.logLevel == "DEBUG" else "" }}>DEBUG</option>
+                    <option value="INFO" {{ "selected" if settings.logLevel == "INFO" else "" }}>INFO</option>
+                    <option value="WARNING" {{ "selected" if settings.logLevel == "WARNING" else "" }}>WARNING</option>
+                    <option value="ERROR" {{ "selected" if settings.logLevel == "ERROR" else "" }}>ERROR</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="pollInterval" class="form-label">Poll interval (seconds)</label>
+                <input type="number" class="form-control" id="pollInterval" value="{{ settings.pollInterval }}">
+            </div>
+            <label for="remuxFormat" class="form-label">Remux recordings?</label>
+            <div class="input-group mb-3">
+                <div class="input-group-text">
+                     <input type="checkbox" class="form-check-input" id="remuxRecordings" checked="{{ 'true' if settings.remuxRecordings else 'false' }}">
+                </div>
+                <input type="text" placeholder="Remux format" class="form-control" id="remuxFormat" value="{{ settings.remuxFormat }}">
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Default channel retention policy</h5>
+                    <div class="row">
+                        <div class="col">
+                            <label for="count" class="form-label">Count</label>
+                            <input type="number" class="form-control" id="default_count" value="{{ settings.defaultRetention.count }}">
+                        </div>
+                        <div class="col">
+                            <label for="size" class="form-label">Size (megabytes)</label>
+                            <input type="number" class="form-control" id="default_size" value="{{ settings.defaultRetention.size }}">
+                        </div>
+                        <div class="col">
+                            <label for="time" class="form-label">Time (days)</label>
+                            <input type="number" class="form-control" id="default_time" value="{{ settings.defaultRetention.time }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Global retention policy</h5>
+                    <div class="row">
+                        <div class="col">
+                            <label for="count" class="form-label">Count</label>
+                            <input type="number" class="form-control" id="global_count" value="{{ settings.globalRetention.count }}">
+                        </div>
+                        <div class="col">
+                            <label for="size" class="form-label">Size (megabytes)</label>
+                            <input type="number" class="form-control" id="global_size" value="{{ settings.globalRetention.size }}">
+                        </div>
+                        <div class="col">
+                            <label for="time" class="form-label">Time (days)</label>
+                            <input type="number" class="form-control" id="global_time" value="{{ settings.globalRetention.time }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="updateSettings()">Update</button>
+        </form>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast" id="updatedToast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <img src="..." class="rounded me-2" alt="...">
+                <strong class="me-auto">Updated settings</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                The settings have been updated successfully.
+            </div>
+        </div>
     </div>
 {% endblock %}

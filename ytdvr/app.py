@@ -1,10 +1,9 @@
 from quart import Quart, request, send_file, render_template
-from sqlite3 import Connection
-from typing import Awaitable, Callable, Any, cast
+from typing import Awaitable, Callable, Any
 import channel as channels
 import config
 import datetime
-import importlib
+import json
 import logging
 import os
 
@@ -63,7 +62,7 @@ async def channel_(channel):
         c = config.config.channels[channel]
         videos = [info._dump() for info in channels.recordings if info.channel == channel]
         videos.sort(key=lambda info: info["timestamp"], reverse=True)
-        return await render_template("channel.html", channel=channel, contents=c._dump(), videos=videos, formatdate=formatdate)
+        return await render_template("channel.html", channel=channel, contents=c._dump(), ytdlParams=json.dumps(c.ytdlParams) if c.ytdlParams is not None else "", videos=videos, formatdate=formatdate)
     except KeyError:
         return (await render_template("404.html", message="The channel requested was not found."), 404)
 
@@ -90,9 +89,13 @@ async def api_settings():
         return config.config._dump(True)
     elif request.method == "PUT":
         data = await request.json
+        if data is None: return ({"error": "Invalid JSON"}, 400)
         if "saveDir" in data:
             if type(data["saveDir"]) != str: return ({"error": "'saveDir' not a string"}, 400)
             config.config.saveDir = data["saveDir"]
+        if "serverPort" in data:
+            if type(data["serverPort"]) != int: return ({"error": "'serverPort' not an integer"}, 400)
+            config.config.serverPort = data["serverPort"]
         if "pollInterval" in data:
             if type(data["pollInterval"]) != int: return ({"error": "'pollInterval' not an integer"}, 400)
             config.config.pollInterval = data["pollInterval"]
@@ -102,12 +105,22 @@ async def api_settings():
         if "remuxFormat" in data:
             if type(data["remuxFormat"]) != str: return ({"error": "'remuxFormat' not a string"}, 400)
             config.config.remuxFormat = data["remuxFormat"]
+        if "logLevel" in data:
+            if type(data["logLevel"]) != str: return ({"error": "'logLevel' not a string"}, 400)
+            config.config.logLevel = data["logLevel"]
         if "defaultRetention" in data:
             if type(data["defaultRetention"]) != dict: return ({"error": "'defaultRetention' not an object"}, 400)
-            if "count" in data["defaultRetention"] and type(data["defaultRetention"]["count"]) != int: return ({"error": "'defaultRetention.count' not an integer"}, 400)
-            if "time" in data["defaultRetention"] and type(data["defaultRetention"]["time"]) != int: return ({"error": "'defaultRetention.time' not an integer"}, 400)
-            if "size" in data["defaultRetention"] and type(data["defaultRetention"]["size"]) != int: return ({"error": "'defaultRetention.size' not an integer"}, 400)
-            config.config.defaultRetention = data["defaultRetention"]
+            if "count" in data["defaultRetention"] and data["defaultRetention"]["count"] is not None and type(data["defaultRetention"]["count"]) != int: return ({"error": "'defaultRetention.count' not an integer"}, 400)
+            if "time" in data["defaultRetention"] and data["defaultRetention"]["time"] is not None and type(data["defaultRetention"]["time"]) != int: return ({"error": "'defaultRetention.time' not an integer"}, 400)
+            if "size" in data["defaultRetention"] and data["defaultRetention"]["size"] is not None and type(data["defaultRetention"]["size"]) != int: return ({"error": "'defaultRetention.size' not an integer"}, 400)
+            config.config.defaultRetention = config.Retention(data["defaultRetention"])
+        if "globalRetention" in data:
+            if type(data["globalRetention"]) != dict: return ({"error": "'globalRetention' not an object"}, 400)
+            if "count" in data["globalRetention"] and data["globalRetention"]["count"] is not None and type(data["globalRetention"]["count"]) != int: return ({"error": "'globalRetention.count' not an integer"}, 400)
+            if "time" in data["globalRetention"] and data["globalRetention"]["time"] is not None and type(data["globalRetention"]["time"]) != int: return ({"error": "'globalRetention.time' not an integer"}, 400)
+            if "size" in data["globalRetention"] and data["globalRetention"]["size"] is not None and type(data["globalRetention"]["size"]) != int: return ({"error": "'globalRetention.size' not an integer"}, 400)
+            config.config.globalRetention = config.Retention(data["globalRetention"])
+        config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return (config.config._dump(True), 200)
     else: return ({"error": "Invalid request method"}, 405)
 
@@ -117,20 +130,21 @@ async def api_channels():
         return {k: c._dump() for k, c in config.config.channels.items()}
     elif request.method == "POST":
         data = await request.json
+        if data is None: return ({"error": "Invalid JSON"}, 400)
         if not ("name" in data) or type(data["name"]) != str: return ({"error": "'name' not a string"}, 400)
         if not ("url" in data) or type(data["url"]) != str: return ({"error": "'url' not a string"}, 400)
         # TODO: check URL
-        if "getChat" in data:
+        if "getChat" in data and data["getChat"] is not None:
             if type(data["getChat"]) != bool: return ({"error": "'getChat' not a bool"}, 400)
         else: data["getChat"] = False
-        if "platform" in data and type(data["platform"]) != str: return ({"error": "'platform' not a string"}, 400)
-        if "quality" in data and type(data["quality"]) != str: return ({"error": "'quality' not a string"}, 400)
-        if "retention" in data:
+        if "platform" in data and data["platform"] is not None and type(data["platform"]) != str: return ({"error": "'platform' not a string"}, 400)
+        if "quality" in data and data["quality"] is not None and type(data["quality"]) != str: return ({"error": "'quality' not a string"}, 400)
+        if "retention" in data and data["retention"] is not None:
             if type(data["retention"]) != dict: return ({"error": "'retention' not an object"}, 400)
-            if "count" in data["retention"] and type(data["retention"]["count"]) != int: return ({"error": "'retention.count' not an integer"}, 400)
-            if "time" in data["retention"] and type(data["retention"]["time"]) != int: return ({"error": "'retention.time' not an integer"}, 400)
-            if "size" in data["retention"] and type(data["retention"]["size"]) != int: return ({"error": "'retention.size' not an integer"}, 400)
-        if "ytdlParams" in data and type(data["ytdlParams"]) != dict: return ({"error": "'ytdlParams' not an object"}, 400)
+            if "count" in data["retention"] and data["retention"]["count"] is not None and type(data["retention"]["count"]) != int: return ({"error": "'retention.count' not an integer"}, 400)
+            if "time" in data["retention"] and data["retention"]["time"] is not None and type(data["retention"]["time"]) != int: return ({"error": "'retention.time' not an integer"}, 400)
+            if "size" in data["retention"] and data["retention"]["size"] is not None and type(data["retention"]["size"]) != int: return ({"error": "'retention.size' not an integer"}, 400)
+        if "ytdlParams" in data and data["ytdlParams"] is not None and type(data["ytdlParams"]) != dict: return ({"error": "'ytdlParams' not an object"}, 400)
         if data["name"] in config.config.channels: return ({"error": "Channel already exists"}, 400)
         config.config.channels[data["name"]] = channels.Channel(obj=data)
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
@@ -146,6 +160,7 @@ async def api_channel(channel):
             return ({"error": "No such channel"}, 404)
     elif request.method == "PUT":
         data = await request.json
+        if data is None: return ({"error": "Invalid JSON"}, 400)
         c = None
         try:
             c = config.config.channels[channel]
@@ -159,19 +174,20 @@ async def api_channel(channel):
             if type(data["getChat"]) != bool: return ({"error": "'getChat' not a bool"}, 400)
             c.getChat = data["getChat"]
         if "platform" in data:
-            if type(data["platform"]) != str: return ({"error": "'platform' not a string"}, 400)
+            if type(data["platform"]) != str and data["platform"] is not None: return ({"error": "'platform' not a string"}, 400)
             c.platform = data["platform"]
         if "quality" in data:
-            if type(data["quality"]) != str: return ({"error": "'quality' not a string"}, 400)
+            if type(data["quality"]) != str and data["quality"] is not None: return ({"error": "'quality' not a string"}, 400)
             c.quality = data["quality"]
         if "retention" in data:
-            if type(data["retention"]) != dict: return ({"error": "'retention' not an object"}, 400)
-            if "count" in data["retention"] and type(data["retention"]["count"]) != int: return ({"error": "'retention.count' not an integer"}, 400)
-            if "time" in data["retention"] and type(data["retention"]["time"]) != int: return ({"error": "'retention.time' not an integer"}, 400)
-            if "size" in data["retention"] and type(data["retention"]["size"]) != int: return ({"error": "'retention.size' not an integer"}, 400)
-            c.retention = data["retention"]
+            if type(data["retention"]) == dict:
+                if "count" in data["retention"] and data["retention"]["count"] is not None and type(data["retention"]["count"]) != int: return ({"error": "'retention.count' not an integer"}, 400)
+                if "time" in data["retention"] and data["retention"]["time"] is not None and type(data["retention"]["time"]) != int: return ({"error": "'retention.time' not an integer"}, 400)
+                if "size" in data["retention"] and data["retention"]["size"] is not None and type(data["retention"]["size"]) != int: return ({"error": "'retention.size' not an integer"}, 400)
+            elif data["retention"] is not None: return ({"error": "'retention' not an object"}, 400)
+            c.retention = config.Retention(data["retention"]) if data["retention"] is not None else None
         if "ytdlParams" in data:
-            if type(data["ytdlParams"]) != dict: return ({"error": "'ytdlParams' not an object"}, 400)
+            if type(data["ytdlParams"]) != dict and data["ytdlParams"] is not None: return ({"error": "'ytdlParams' not an object"}, 400)
             c.ytdlParams = data["ytdlParams"]
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return (c._dump(), 200)
