@@ -1,8 +1,8 @@
 from typing import Optional, cast, TYPE_CHECKING
-if TYPE_CHECKING: from channel import Channel
-else: Channel = object
 import importlib
 import json
+if TYPE_CHECKING: from channel import Channel
+else: Channel = object
 
 class Retention:
     count: Optional[int]

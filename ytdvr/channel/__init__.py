@@ -40,7 +40,7 @@ class ChatRecorder:
         """
         raise NotImplementedError()
 
-def get_chat_recorder(platform: str, url: str, filename: str) -> Optional[ChatRecorder]:
+def get_chat_recorder(loop: asyncio.EventLoop, platform: str, url: str, filename: str, info: Optional[dict]) -> Optional[ChatRecorder]:
     """
     Returns a chat recorder for a platform, if available, and starts recording.
 
@@ -49,7 +49,16 @@ def get_chat_recorder(platform: str, url: str, filename: str) -> Optional[ChatRe
     :param filename: The file path to save at
     """
     # TODO
-    if platform == "Twitch": return importlib.import_module(".twitch", "channel").TwitchChatRecorder(url, filename)
+    if platform == "Twitch" or platform == "TwitchStream":
+        return importlib.import_module(".twitch", "channel").TwitchChatRecorder(url, filename)
+    elif platform == "Youtube":
+        try: yt = importlib.import_module(".youtube", "channel")
+        except: return None
+        return yt.YoutubeChatRecorder(loop, info, filename)
+    elif platform == "Kick":
+        try: kick = importlib.import_module(".kick", "channel")
+        except: return None
+        return kick.KickChatRecorder(loop, url, filename)
     return None
 
 class RecordingInfo:
@@ -122,7 +131,7 @@ class RecordingInfo:
         dl.params["wait_for_video"] = (2, 5)
         self._ytdlProcess = threading.Thread(target=self._ytdlMain, name=self.filename, args=[dl, completion, loop]) # type: ignore
         self._ytdlProcess.start()
-        if getChat: self._chatRecorder = get_chat_recorder(platform, cast(str, info["original_url"]), config.config.saveDir + "/" + cast(str, self.chat_filename))
+        if getChat: self._chatRecorder = get_chat_recorder(loop, platform, cast(str, info["original_url"]), config.config.saveDir + "/" + cast(str, self.chat_filename), info)
         LOG.info(f"Starting recording process (TID {self._ytdlProcess.native_id})")
         return self
 
@@ -204,7 +213,6 @@ class Channel:
         except utils.DownloadError:
             loop.call_soon_threadsafe(future.set_result, (False, None))
             return
-        chatdl = None
         loop.call_soon_threadsafe(future.set_result, (True, (dl, info))) # type: ignore
 
     async def check_live(self) -> tuple[bool, Any]:

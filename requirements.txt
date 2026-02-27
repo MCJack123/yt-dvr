@@ -2,3 +2,10 @@ yt_dlp
 quart
 pathvalidate
 typed-ffmpeg
+
+# Optional for some chat support
+python-dateutil
+pytchat # youtube.com
+kickpython # kick.com
+aiohttp # kick.com
+curl_cffi # kick.com

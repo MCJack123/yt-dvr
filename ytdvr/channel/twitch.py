@@ -1,10 +1,10 @@
 from . import ChatRecorder
-import socket
-import threading
-import re
-import random
 from io import TextIOWrapper
 import datetime
+import random
+import re
+import socket
+import threading
 
 channel_name_regex = re.compile("^https?://(www\\.)?twitch\\.tv/([\\w_]+)")
 chat_message_regex = re.compile(":(.+?)!.+?PRIVMSG #[\\w_]+ :(.+)")
@@ -14,6 +14,7 @@ class TwitchChatRecorder(ChatRecorder):
     conn: socket.socket
     file: TextIOWrapper
     running: bool
+    start_time: datetime.datetime
 
     def __init__(self, url: str, filename: str):
         m = channel_name_regex.match(url)
@@ -24,6 +25,7 @@ class TwitchChatRecorder(ChatRecorder):
         self.conn = socket.socket(socket.AddressFamily.AF_INET, socket.SocketKind.SOCK_STREAM)
         self.thread = threading.Thread(target=self._worker, name="Twitch chat for " + name, args=[name])
         self.thread.start()
+        self.start_time = datetime.datetime.now()
 
     def _worker(self, name: str):
         print("Connecting to chat for " + name)
@@ -35,20 +37,20 @@ class TwitchChatRecorder(ChatRecorder):
             if line != "":
                 m = chat_message_regex.match(line)
                 if m:
-                    self.file.write("[%s] %s: %s\n" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), m.group(1), m.group(2)))
+                    self.file.write("[%s][%d] %s: %s\n" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now() - self.start_time).total_seconds(), m.group(1), m.group(2)))
                     self.file.flush()
                 elif "USERNOTICE" in line:
-                    self.file.write("[%s] %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), line[line.find(" :") + 2:]))
+                    self.file.write("[%s][%d] %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now() - self.start_time).total_seconds(), line[line.find(" :") + 2:]))
                     self.file.flush()
                 elif "CLEARMSG" in line:
-                    self.file.write("[%s] <message deleted>: %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), line[line.find(" :") + 2:]))
+                    self.file.write("[%s][%d] <message deleted>: %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now() - self.start_time).total_seconds(), line[line.find(" :") + 2:]))
                     self.file.flush()
                 elif "CLEARCHAT" in line:
                     if " :" in line:
-                        self.file.write("[%s] Purged user %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), line[line.find(" :") + 2:]))
+                        self.file.write("[%s][%d] Purged user %s" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now() - self.start_time).total_seconds(), line[line.find(" :") + 2:]))
                         self.file.flush()
                     else:
-                        self.file.write("[%s] Purged chat\n" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds")))
+                        self.file.write("[%s][%d] Purged chat\n" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now() - self.start_time).total_seconds()))
                         self.file.flush()
                 if line.find("PING") != -1: self.conn.send(bytes(line.replace("PING", "PONG"), "utf8"))
         self.conn.close()

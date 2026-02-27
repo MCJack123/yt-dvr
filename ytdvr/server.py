@@ -1,14 +1,14 @@
+from typing import Any
 import app
-import config
-import channel as channels
 import asyncio
+import channel as channels
+import config
+import ffmpeg
 import logging
+import multiprocessing
 import os
 import signal
 import sqlite3
-import multiprocessing
-import ffmpeg
-from typing import Any
 
 LOG = logging.getLogger("yt-dvr")
 
@@ -107,6 +107,11 @@ async def main():
         for r in channels.recordings: r.abort()
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         raise e
+    LOG.warning("Caught interrupt, exiting")
+    for r in channels.recordings: r.stop()
+    config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+    db.close()
+    return
 
 def main_cli():
     asyncio.run(main())

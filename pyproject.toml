@@ -12,5 +12,15 @@ dependencies = [
     "typed-ffmpeg"
 ]
 
+[project.optional-dependencies]
+kick = [
+    "kickpython",
+    "python-dateutil"
+]
+youtube = [
+    "pytchat",
+    "python-dateutil"
+]
+
 [project.scripts]
 yt-dvr = "server:main_cli"

@@ -1,10 +1,10 @@
 from quart import Quart, request, send_file, render_template
+from typing import Awaitable, Callable, Any
+import channel as channels
 import config
+import datetime
 import logging
 import os
-import datetime
-import channel as channels
-from typing import Awaitable, Callable, Any
 
 LOG = logging.getLogger("yt-dvr")
 
