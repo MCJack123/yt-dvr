@@ -1,84 +1,110 @@
 from typing import Any
+from config import LOG, config
 import app
 import asyncio
 import channel as channels
-import config
-import ffmpeg
+import datetime
 import logging
 import multiprocessing
 import os
 import signal
 import sqlite3
 
-LOG = logging.getLogger("yt-dvr")
-
-db: sqlite3.Connection
-
 shutdown_event = asyncio.Event()
 
 def _signal_handler(*_: Any) -> None:
     shutdown_event.set()
 
-def updateRecording(info: channels.RecordingInfo, platform: str | None = None, channel: str | None = None, timestamp: int | None = None):
-    global db
-    if platform is None: platform = info.platform
-    if channel is None: channel = info.channel
-    if timestamp is None: timestamp = info.timestamp
-    if info.filename.endswith(".ts") and config.config.remuxRecordings:
-        LOG.info("Remuxing container for " + info.title + " (" + info.filename + ")")
-        newname = info.filename.removesuffix(".ts") + ".mp4"
-        try:
-            input = config.config.saveDir + "/" + info.filename
-            if not os.path.exists(input): input += ".part"
-            (ffmpeg
-                .input(input)
-                .output(filename=config.config.saveDir + "/" + newname, f=config.config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True})).run()
-            try: os.remove(input)
-            except: pass
-            info.filename = newname
-        except Exception as e:
-            LOG.error(e)
-    cur = db.cursor()
-    cur.execute("UPDATE videos SET platform = ?, channel = ?, title = ?, timestamp = ?, url = ?, filename = ?, chat_filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?",
-                (info.platform, info.channel, info.title, info.timestamp, info.url, info.filename, info.chat_filename, info.in_progress, platform, channel, timestamp))
-    db.commit()
+async def retention_watcher():
+    while not shutdown_event.is_set():
+        LOG.info("Scanning retention for all channels")
+        for name, channel in config.channels.items():
+            retention = channel.retention or config.defaultRetention
+            if retention.count is not None or retention.size is not None or retention.time is not None:
+                videos = [v for v in channels.recordings if v.channel == name]
+                videos.sort(key=lambda v: v.timestamp)
+                if retention.count is not None:
+                    while len(videos) > retention.count:
+                        LOG.info("Removing recording " + videos[0].title + " (count)")
+                        channels.recordings.remove(videos[0])
+                        await videos[0].delete()
+                        videos.pop(0)
+                if retention.size is not None:
+                    total_size = 0
+                    for v in videos:
+                        try:
+                            total_size = total_size + os.path.getsize(config.saveDir + "/" + v.filename)
+                            if v.chat_filename is not None: total_size = total_size + os.path.getsize(config.saveDir + "/" + v.chat_filename)
+                        except: pass
+                    while len(videos) > 0 and total_size > retention.size * 1000000:
+                        LOG.info("Removing recording " + videos[0].title + " (size)")
+                        channels.recordings.remove(videos[0])
+                        await videos[0].delete()
+                        videos.pop(0)
+                if retention.time is not None:
+                    now = int(datetime.datetime.now().timestamp())
+                    cutoff = now - retention.time * 86400
+                    while len(videos) > 0 and videos[0].timestamp < cutoff:
+                        LOG.info("Removing recording " + videos[0].title + " (time)")
+                        channels.recordings.remove(videos[0])
+                        await videos[0].delete()
+                        videos.pop(0)
+        retention = config.globalRetention
+        if retention.count is not None or retention.size is not None or retention.time is not None:
+            videos = [v for v in channels.recordings]
+            videos.sort(key=lambda v: v.timestamp)
+            if retention.count is not None:
+                while len(videos) > retention.count:
+                    LOG.info("Removing recording " + videos[0].title + " (count)")
+                    channels.recordings.remove(videos[0])
+                    await videos[0].delete()
+                    videos.pop(0)
+            if retention.size is not None:
+                total_size = 0
+                for v in videos:
+                    try:
+                        total_size = total_size + os.path.getsize(config.saveDir + "/" + v.filename)
+                        if v.chat_filename is not None: total_size = total_size + os.path.getsize(config.saveDir + "/" + v.chat_filename)
+                    except: pass
+                while len(videos) > 0 and total_size > retention.size * 1000000:
+                    LOG.info("Removing recording " + videos[0].title + " (size)")
+                    channels.recordings.remove(videos[0])
+                    await videos[0].delete()
+                    videos.pop(0)
+            if retention.time is not None:
+                now = int(datetime.datetime.now().timestamp())
+                cutoff = now - retention.time * 86400
+                while len(videos) > 0 and videos[0].timestamp < cutoff:
+                    LOG.info("Removing recording " + videos[0].title + " (time)")
+                    channels.recordings.remove(videos[0])
+                    await videos[0].delete()
+                    videos.pop(0)
+        await asyncio.sleep(config.pollInterval)
 
 async def main():
-    global db
     LOG.info("Starting yt-dvr")
-    asyncio.get_event_loop().add_signal_handler(signal.SIGINT, asyncio.current_task().cancel) # type: ignore
-    config.config.load(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
-    config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
-    db = sqlite3.connect(os.getenv("YTDVR_DB") or "./ytdvr.db")
-    cur = db.cursor()
+    config.load(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+    config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+    config.db = sqlite3.connect(os.getenv("YTDVR_DB") or "./ytdvr.db")
+    LOG.setLevel(config.logLevel)
+    cur = config.db.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS videos (platform TEXT, channel TEXT, title TEXT, timestamp INTEGER, url TEXT, filename TEXT, chat_filename TEXT, in_progress INTEGER)")
     res = cur.execute("SELECT platform, channel, title, timestamp, url, filename, chat_filename, in_progress FROM videos")
     for platform, channel, title, timestamp, url, filename, chat_filename, in_progress in res.fetchall():
+        r = channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False)
         if in_progress != 0:
-            # TODO: remux
             LOG.warning(f"Detected partial video at {filename}, remuxing")
-            newname = filename.removesuffix(".ts") + "." + config.config.remuxFormat
-            try:
-                input = config.config.saveDir + "/" + filename
-                if not os.path.exists(input): input += ".part"
-                (ffmpeg
-                    .input(filename=input)
-                    .output(filename=config.config.saveDir + "/" + newname, f=config.config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True})).run()
-                try: os.remove(input)
-                except: pass
-                filename = newname
-            except Exception as e:
-                LOG.error(e)
-            cur.execute("UPDATE videos SET filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?", (filename, 0, platform, channel, timestamp))
-            db.commit()
-        channels.recordings.append(channels.RecordingInfo(platform, channel, title, timestamp, url, filename, chat_filename, False))
-    asyncio.create_task(app.run(config.config.serverPort, shutdown_event.wait))
+            r.remux()
+            r.update()
+        channels.recordings.append(r)
+    asyncio.create_task(app.run(config.serverPort, shutdown_event.wait))
+    asyncio.create_task(retention_watcher())
     signal.signal(signal.SIGINT, _signal_handler)
     multiprocessing.set_start_method("spawn")
     try:
         while not shutdown_event.is_set():
             LOG.info("Checking channels for liveness")
-            for name, channel in config.config.channels.items():
+            for name, channel in config.channels.items():
                 LOG.debug(f"Checking channel {name}")
                 try:
                     next(r for r in channels.recordings if r.channel == name and r.in_progress)
@@ -86,31 +112,24 @@ async def main():
                     ok, arg = await channel.check_live()
                     if ok:
                         LOG.info(f"Starting recording for channel {name}")
-                        rec = await channel.download(name, arg, updateRecording)
+                        rec = await channel.download(name, arg)
                         channels.recordings.append(rec)
-                        cur = db.cursor()
-                        cur.execute("INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                                    (rec.platform, rec.channel, rec.title, rec.timestamp, rec.url, rec.filename, rec.chat_filename, rec.in_progress))
-                        db.commit()
                     else:
-                        LOG.info(f"Stream {name} is not live")
-            LOG.info("Done checking")
-            try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.config.pollInterval)
+                        LOG.debug(f"Stream {name} is not live")
+            LOG.debug("Done checking")
+            try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.pollInterval)
             except TimeoutError: pass
     except KeyboardInterrupt:
         LOG.warning("Caught interrupt, exiting")
         for r in channels.recordings: r.stop()
-        config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return
     except BaseException as e:
         LOG.warning("Caught exception, exiting")
         for r in channels.recordings: r.abort()
-        config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+        config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         raise e
     LOG.warning("Caught interrupt, exiting")
     for r in channels.recordings: r.stop()
-    config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
-    db.close()
     return
 
 def main_cli():
@@ -120,4 +139,6 @@ if __name__ == "__main__":
     LOG.setLevel(logging.DEBUG)
     #LOG.addHandler(logging.StreamHandler(sys.stdout))
     asyncio.run(main())
+    config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+    config.db.close()
     

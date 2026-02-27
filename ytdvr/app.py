@@ -1,8 +1,10 @@
 from quart import Quart, request, send_file, render_template
-from typing import Awaitable, Callable, Any
+from sqlite3 import Connection
+from typing import Awaitable, Callable, Any, cast
 import channel as channels
 import config
 import datetime
+import importlib
 import logging
 import os
 
@@ -197,16 +199,8 @@ async def api_video(channel, timestamp):
     elif request.method == "DELETE":
         for i, info in enumerate(channels.recordings):
             if info.channel == channel and info.timestamp == timestamp:
-                if info.in_progress: info.stop()
-                try:
-                    try:
-                        os.remove(config.config.saveDir + "/" + info.filename)
-                    except:
-                        os.remove(config.config.saveDir + "/" + info.filename + ".part")
-                    if info.chat_filename is not None: os.remove(config.config.saveDir + "/" + info.chat_filename)
-                except: pass
                 channels.recordings.pop(i)
-                # TODO: delete from database
+                await info.delete()
                 return ("", 204)
         return ({"error": "Video not found"}, 404)
     else: return ({"error": "Invalid request method"}, 405)

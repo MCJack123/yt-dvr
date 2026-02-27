@@ -19,9 +19,11 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `count`: The maximum number of recordings to keep.
   - `time`: The maximum age of a recording, in days.
   - `size`: The maximum cumulative file size, in megabytes.
+- `globalRetention`: Similar to `defaultRetention`, but applies to all videos altogether.
 - `pollInterval`: The number of seconds to wait between live checks.
 - `remuxRecordings`: Whether to remux recordings after finishing. (Recordings are saved as MPEG-TS for streaming.)
 - `remuxFormat`: If remuxing is enabled, the (FFmpeg) format to remux to.
+- `logLevel`: The logging level as defined by [Python `logging`](https://docs.python.org/3/library/logging.html#logging-levels) (string)
 - `channels`: An object containing channel names and options to record, with the following channel options (optional unless otherwise specified):
   - `url`: The URL to record (required)
     - For YouTube channels, this should be in the format `https://www.youtube.com/@<channel>/live`

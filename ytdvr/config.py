@@ -1,6 +1,8 @@
 from typing import Optional, cast, TYPE_CHECKING
 import importlib
 import json
+import logging
+import sqlite3
 if TYPE_CHECKING: from channel import Channel
 else: Channel = object
 
@@ -29,20 +31,25 @@ class Config:
     saveDir: str
     serverPort: int
     defaultRetention: Retention
+    globalRetention: Retention
     channels: dict[str, Channel]
     pollInterval: int
     remuxRecordings: bool
     remuxFormat: str
+    logLevel: str
+
+    db: sqlite3.Connection
 
     def __init__(self):
         self.saveDir = "files"
         self.serverPort = 6334
         self.defaultRetention = Retention()
+        self.globalRetention = Retention()
         self.channels = {}
         self.pollInterval = 60
         self.remuxRecordings = True
         self.remuxFormat = "mp4"
-        self.platforms = []
+        self.logLevel = "INFO"
 
     def load(self, path: str):
         try:
@@ -52,11 +59,13 @@ class Config:
             self.saveDir = dict["saveDir"]
             self.serverPort = dict["serverPort"]
             self.defaultRetention = Retention(dict["defaultRetention"])
+            self.globalRetention = Retention(dict["globalRetention"])
             channel = importlib.import_module("channel")
             self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
             self.pollInterval = dict["pollInterval"]
             self.remuxRecordings = dict["remuxRecordings"]
             self.remuxFormat = dict["remuxFormat"]
+            self.logLevel = dict["logLevel"] if "logLevel" in dict else "INFO"
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:
@@ -65,18 +74,22 @@ class Config:
                 "saveDir": self.saveDir,
                 "serverPort": self.serverPort,
                 "defaultRetention": self.defaultRetention._dump(),
+                "globalRetention": self.globalRetention._dump(),
                 "pollInterval": self.pollInterval,
                 "remuxRecordings": self.remuxRecordings,
-                "remuxFormat": self.remuxFormat
+                "remuxFormat": self.remuxFormat,
+                "logLevel": self.logLevel,
             }
         return {
             "saveDir": self.saveDir,
             "serverPort": self.serverPort,
             "defaultRetention": self.defaultRetention._dump(),
+            "globalRetention": self.globalRetention._dump(),
             "channels": {k: channel._dump() for k, channel in self.channels.items()},
             "pollInterval": self.pollInterval,
             "remuxRecordings": self.remuxRecordings,
             "remuxFormat": self.remuxFormat,
+            "logLevel": self.logLevel,
         }
 
     def dumps(self) -> str:
@@ -86,3 +99,4 @@ class Config:
         with open(path, "w") as file: file.write(self.dumps())
 
 config = Config()
+LOG = logging.getLogger("yt-dvr")

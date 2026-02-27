@@ -1,4 +1,5 @@
 from . import ChatRecorder
+from config import LOG
 from io import TextIOWrapper
 import datetime
 import random
@@ -28,7 +29,7 @@ class TwitchChatRecorder(ChatRecorder):
         self.start_time = datetime.datetime.now()
 
     def _worker(self, name: str):
-        print("Connecting to chat for " + name)
+        LOG.debug("Connecting to chat for " + name)
         self.conn.connect(("irc.chat.twitch.tv", 6667))
         self.conn.sendall(b"CAP REQ :twitch.tv/commands\r\nPASS BLANK\r\nNICK justinfan" + (b"%04d" % random.randint(0, 9999)) + b"\r\nJOIN #" + bytes(name, "utf8") + b"\r\n")
         reader = self.conn.makefile()

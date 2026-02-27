@@ -1,8 +1,8 @@
 from . import ChatRecorder
+from config import LOG
 from dateutil import parser as dateparser
 from io import TextIOWrapper
 from pytchat.processors.default.processor import Chatdata
-from server import LOG
 import asyncio
 import datetime
 import pytchat
@@ -22,12 +22,11 @@ class YoutubeChatRecorder(ChatRecorder):
     async def _start(self, id: str):
         async def cb(chatdata): return await self.callback(chatdata)
         self.conn = pytchat.LiveChatAsync(id, callback=cb, interruptable=False, logger=LOG)
-        LOG.info("Started logging YT chat for " + id)
+        LOG.debug("Started logging YT chat for " + id)
 
     async def callback(self, chatdata: Chatdata):
         if not self.running: return
         async for c in chatdata.async_items():
-            print(c)
             d = dateparser.parse(c.datetime)
             self.file.write("[%s][%d] %s: %s\n" % (d.isoformat(sep=" ", timespec="seconds"), (d - self.start_time).total_seconds(), c.author.name, c.message))
         self.file.flush()
