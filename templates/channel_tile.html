@@ -1,8 +1,41 @@
-<div class="col col-4">
+<div class="col fade-in">
     <div class="card bg-body-secondary h-100">
         <div class="card-body">
-            <h5 class="card-title"><a href="/channels/{{ name }}">{{ name }}</a></h5>
-            <p class="card-text">{{ channel.url }}</p>
+            <div class="d-flex align-items-center gap-2 mb-2">
+                {% if channel.is_recording %}
+                <span class="status-dot recording" title="Recording"></span>
+                {% endif %} {% set platform = channel.platform %} {% set size =
+                18 %} {% include 'platform_icon.html' %}
+                <h5 class="card-title mb-0 text-truncate">
+                    <a href="/channels/{{ name }}" class="text-decoration-none">
+                        {{ name }}
+                    </a>
+                </h5>
+            </div>
+            <p
+                class="card-text text-muted text-truncate mb-1"
+                title="{{ channel.url }}"
+                style="font-size: 0.85rem"
+            >
+                <i class="bi bi-link-45deg"></i> {{ channel.url }}
+            </p>
+            <div class="d-flex gap-2 flex-wrap mt-2">
+                {% if channel.video_count is defined %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-camera-video"></i>
+                    {{ channel.video_count }} video{{ 's' if channel.video_count
+                    != 1 else '' }}
+                </span>
+                {% endif %} {% if channel.quality %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-badge-hd"></i> {{ channel.quality }}
+                </span>
+                {% endif %} {% if channel.getChat %}
+                <span class="badge bg-secondary">
+                    <i class="bi bi-chat-dots"></i> Chat
+                </span>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

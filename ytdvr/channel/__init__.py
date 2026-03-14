@@ -1,68 +1,100 @@
-from typing import Optional, cast, Callable, Any
-from yt_dlp import YoutubeDL, utils
 import asyncio
 import ctypes
 import datetime
-import ffmpeg
 import importlib
 import logging
 import os
-import pathvalidate
-import sys
+import pathlib
 import threading
-sys.path.append("..")
-from config import config, LOG, Retention
+from typing import Any, Optional, cast
 
-LOG = logging.getLogger("yt-dvr")
+import pathvalidate
+from config import LOG, Retention, config
+from yt_dlp import YoutubeDL, utils
 
-def ctype_async_raise(target_tid, exception):
-    ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(target_tid), ctypes.py_object(exception))
-    # ref: http://docs.python.org/c-api/init.html#PyThreadState_SetAsyncExc
+
+def ctype_async_raise(target_tid: int, exception: type):
+    ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(
+        ctypes.c_long(target_tid), ctypes.py_object(exception)
+    )
     if ret == 0:
         raise ValueError("Invalid thread ID")
     elif ret > 1:
-        # Huh? Why would we notify more than one threads?
-        # Because we punch a hole into C level interpreter.
-        # So it is better to clean up the mess.
         ctypes.pythonapi.PyThreadState_SetAsyncExc(target_tid, ctypes.c_void_p(0))
         raise SystemError("PyThreadState_SetAsyncExc failed")
 
-class ChatRecorder:
-    """
-    An abstract class representing a chat recorder for a platform.
-    """
 
+class ChatRecorder:
     def stop(self):
-        """
-        Stop a pending chat recording process.
-        """
         raise NotImplementedError()
 
-def get_chat_recorder(loop: asyncio.EventLoop, platform: str, url: str, filename: str, info: Optional[dict]) -> Optional[ChatRecorder]:
-    """
-    Returns a chat recorder for a platform, if available, and starts recording.
 
-    :param platform: The platform to get for
-    :param url: The URL to start recording
-    :param filename: The file path to save at
-    """
-    if platform == "Twitch" or platform == "TwitchStream":
-        return importlib.import_module(".twitch", "channel").TwitchChatRecorder(url, filename)
+def get_chat_recorder(
+    loop: asyncio.AbstractEventLoop,
+    platform: str,
+    url: str,
+    filename: str,
+    info: Optional[dict],
+) -> Optional[ChatRecorder]:
+    if platform in ("Twitch", "TwitchStream"):
+        return importlib.import_module(".twitch", "channel").TwitchChatRecorder(
+            url, filename
+        )
     elif platform == "Youtube":
-        try: yt = importlib.import_module(".youtube", "channel")
-        except: return None
+        try:
+            yt = importlib.import_module(".youtube", "channel")
+        except ImportError:
+            return None
         return yt.YoutubeChatRecorder(loop, info, filename)
     elif platform == "Kick":
-        try: kick = importlib.import_module(".kick", "channel")
-        except: return None
+        try:
+            kick = importlib.import_module(".kick", "channel")
+        except ImportError:
+            return None
         return kick.KickChatRecorder(loop, url, filename)
     return None
 
+
+def _make_hls_path(file_path: str) -> str:
+    p = pathlib.PurePosixPath(file_path)
+    return str(p.with_suffix(".m3u8"))
+
+
+def _make_thumbnail_path(file_path: str) -> str:
+    """Convert a file path to its thumbnail .jpg equivalent."""
+    p = pathlib.PurePosixPath(file_path)
+    return str(p.with_suffix(".thumb.jpg"))
+
+
+def generate_thumbnail(
+    input_path: str, output_path: str, seek_seconds: int = 5
+) -> bool:
+    """
+    Generate a thumbnail from a video file using ffmpeg.
+    Returns True on success, False on failure.
+    """
+    try:
+        import ffmpeg
+
+        (
+            ffmpeg.input(input_path, ss=seek_seconds)
+            .output(
+                output_path,
+                vframes=1,
+                format="image2",
+                vcodec="mjpeg",
+                s="480x270",
+            )
+            .overwrite_output()
+            .run(quiet=True, capture_stderr=True)
+        )
+        return os.path.isfile(output_path)
+    except Exception as e:
+        LOG.debug(f"Thumbnail generation failed for {input_path}: {e}")
+        return False
+
+
 class RecordingInfo:
-    """
-    Information about a live stream. This is derived by platforms to implement
-    a recording session.
-    """
     platform: str
     channel: str
     title: str
@@ -70,6 +102,7 @@ class RecordingInfo:
     url: str
     filename: str
     chat_filename: Optional[str]
+    thumbnail_filename: Optional[str]
     in_progress: bool
 
     _ytdlProcess: Optional[threading.Thread]
@@ -77,18 +110,18 @@ class RecordingInfo:
     _stop: bool
     _abort: bool
 
-    def __init__(self, platform: str, channel: str, title: str, timestamp: int, url: str, filename: str, chat_filename: Optional[str], in_progress: bool):
-        """
-        Creates a base recording object.
-
-        :param platform: The ID of the platform that started the recording
-        :param channel: The ID of the channel that is being recorded
-        :param title: The title of the video
-        :param timestamp: The time the recording started
-        :param url: The original URL of the video
-        :param filename: The path of the file on disk, relative to saveDir
-        :param in_progress: Whether the recording is ongoing
-        """
+    def __init__(
+        self,
+        platform: str,
+        channel: str,
+        title: str,
+        timestamp: int,
+        url: str,
+        filename: str,
+        chat_filename: Optional[str],
+        in_progress: bool,
+        thumbnail_filename: Optional[str] = None,
+    ):
         self.platform = platform
         self.channel = channel
         self.title = title
@@ -96,6 +129,7 @@ class RecordingInfo:
         self.url = url
         self.filename = filename
         self.chat_filename = chat_filename
+        self.thumbnail_filename = thumbnail_filename
         self.in_progress = in_progress
         self._ytdlProcess = None
         self._chatRecorder = None
@@ -103,131 +137,221 @@ class RecordingInfo:
         self._abort = False
 
     @classmethod
-    def _create_ytdl(cls, loop: asyncio.EventLoop, dl: YoutubeDL, info: dict, getChat: bool, platform: str, channel: str, title: str):
-        """
-        Internal - Creates a recording for a yt-dl session.
+    def _create_ytdl(
+        cls,
+        loop: asyncio.AbstractEventLoop,
+        dl: YoutubeDL,
+        info: dict,
+        get_chat: bool,
+        platform: str,
+        channel: str,
+        title: str,
+    ) -> "RecordingInfo":
+        now = datetime.datetime.now()
+        timestamp_str = now.isoformat(sep=" ", timespec="seconds").replace(":", "-")
+        base_name = pathvalidate.sanitize_filename(f"{timestamp_str} - {title}")
 
-        :param loop: The event loop for the main thread
-        :param dl: The yt-dl session that was initialized
-        :param info: The info about the video
-        :param getChat: Whether to create a chat recorder with the recording
-        :param platform: The ID of the platform that started the recording
-        :param channel: The ID of the channel that is being recorded
-        :param title: The title of the video
-        """
         self = RecordingInfo(
-            platform, channel, title,
-            int(datetime.datetime.now().timestamp()),
-            cast(str, info["original_url"]),
-            channel + "/" + pathvalidate.sanitize_filename(datetime.datetime.now().isoformat(sep=" ", timespec="seconds").replace(":", "-") + " - " + title + ".ts"),
-            channel + "/" + pathvalidate.sanitize_filename(datetime.datetime.now().isoformat(sep=" ", timespec="seconds").replace(":", "-") + " - " + title + ".txt") if getChat is not None else None,
-            True)
-        try: os.makedirs(config.saveDir + "/" + channel)
-        except FileExistsError: pass
-        dl.params["outtmpl"] = {"default": config.saveDir + "/" + self.filename} # TODO: proper path and extension
+            platform=platform,
+            channel=channel,
+            title=title,
+            timestamp=int(now.timestamp()),
+            url=cast(str, info["original_url"]),
+            filename=f"{channel}/{base_name}.ts",
+            chat_filename=f"{channel}/{base_name}.txt" if get_chat else None,
+            thumbnail_filename=None,
+            in_progress=True,
+        )
+
+        os.makedirs(os.path.join(config.saveDir, channel), exist_ok=True)
+
+        dl.params["outtmpl"] = {"default": os.path.join(config.saveDir, self.filename)}
         dl.params["hls_use_mpegts"] = True
-        #dl.params["writesubtitles"] = True
-        #dl.params["subtitleslangs"] = ["live_chat"]
         dl.params["wait_for_video"] = (2, 5)
-        self._ytdlProcess = threading.Thread(target=self._ytdlMain, name=self.filename, args=[dl, loop]) # type: ignore
+
+        self._ytdlProcess = threading.Thread(
+            target=self._ytdlMain, name=self.filename, args=[dl, loop]
+        )
         self._ytdlProcess.start()
-        if getChat: self._chatRecorder = get_chat_recorder(loop, platform, cast(str, info["original_url"]), config.saveDir + "/" + cast(str, self.chat_filename), info)
+
+        if get_chat:
+            self._chatRecorder = get_chat_recorder(
+                loop,
+                platform,
+                cast(str, info["original_url"]),
+                os.path.join(config.saveDir, cast(str, self.chat_filename)),
+                info,
+            )
+
         loop.call_soon_threadsafe(self._insert_into_db)
         LOG.info(f"Starting recording process (TID {self._ytdlProcess.native_id})")
         return self
-    
+
     def _insert_into_db(self):
         cur = config.db.cursor()
-        cur.execute("INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (self.platform, self.channel, self.title, self.timestamp, self.url, self.filename, self.chat_filename, self.in_progress))
+        cur.execute(
+            "INSERT INTO videos VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                self.platform,
+                self.channel,
+                self.title,
+                self.timestamp,
+                self.url,
+                self.filename,
+                self.chat_filename,
+                self.thumbnail_filename,
+                self.in_progress,
+            ),
+        )
         config.db.commit()
 
     def stop(self):
-        """
-        Stops a pending recording if in progress, triggering a remux if necessary.
-        """
         if self._ytdlProcess is not None:
             self._stop = True
             ctype_async_raise(self._ytdlProcess.ident, KeyboardInterrupt)
             self._ytdlProcess.join()
-        if self._chatRecorder is not None: self._chatRecorder.stop()
-    
+        if self._chatRecorder is not None:
+            self._chatRecorder.stop()
+
     def abort(self):
-        """
-        Aborts a pending recording if in progress, skipping remux. This is used
-        on server close.
-        """
         if self._ytdlProcess is not None:
             self._abort = True
             self._stop = True
             ctype_async_raise(self._ytdlProcess.ident, KeyboardInterrupt)
-        if self._chatRecorder is not None: self._chatRecorder.stop()
+        if self._chatRecorder is not None:
+            self._chatRecorder.stop()
 
     def remux(self):
-        """
-        Remuxes the recording if necessary.
-        """
-        if self.filename.endswith("." + config.remuxFormat): return
-        LOG.info("Remuxing container for " + self.title + " (" + self.filename + ")")
-        newname = self.filename.removesuffix(".ts") + "." + config.remuxFormat
+        if self.filename.endswith("." + config.remuxFormat):
+            return
+
+        LOG.info(f"Remuxing container for {self.title} ({self.filename})")
+        newname = pathlib.PurePosixPath(self.filename).with_suffix(
+            "." + config.remuxFormat
+        )
+        input_path = os.path.join(config.saveDir, self.filename)
+        if not os.path.exists(input_path):
+            input_path += ".part"
+        if not os.path.exists(input_path):
+            LOG.error(f"Cannot remux: source file not found for {self.filename}")
+            return
+
+        output_path = os.path.join(config.saveDir, str(newname))
         try:
-            input = config.saveDir + "/" + self.filename
-            if not os.path.exists(input): input += ".part"
-            (ffmpeg
-                .input(filename=input)
-                .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True})).run()
-            try: os.remove(input)
-            except: pass
-            self.filename = newname
+            import ffmpeg
+
+            (
+                ffmpeg.input(input_path)
+                .output(
+                    output_path,
+                    format=config.remuxFormat,
+                    codec="copy",
+                    movflags="+faststart",
+                )
+                .overwrite_output()
+                .run(quiet=config.logLevel != "DEBUG")
+            )
+            try:
+                os.remove(input_path)
+            except OSError:
+                pass
+            self.filename = str(newname)
         except Exception as e:
-            LOG.error(e)
-    
-    def update(self, platform: str | None = None, channel: str | None = None, timestamp: int | None = None):
-        """
-        Updates the recording status in the database, and remuxes if necessary.
-        Provide the original platform/channel/timestamp values if they have
-        changed, for identification in the database. (They are not required
-        otherwise.)
+            LOG.error(f"Remux failed: {e}")
 
-        This must be called from the main thread.
+    def generate_thumbnail(self):
+        """Generate thumbnail after recording finishes. Runs in recording thread."""
+        base = pathlib.PurePosixPath(self.filename)
+        thumb_rel = str(base.with_suffix(".thumb.jpg"))
+        thumb_abs = os.path.join(config.saveDir, thumb_rel)
 
-        :param platform: The original platform for the recording
-        :param channel: The original channel for the recording
-        :param timestamp: The original timestamp for the recording
-        """
-        if platform is None: platform = self.platform
-        if channel is None: channel = self.channel
-        if timestamp is None: timestamp = self.timestamp
+        input_path = os.path.join(config.saveDir, self.filename)
+        if not os.path.isfile(input_path):
+            input_path = input_path + ".part"
+        if not os.path.isfile(input_path):
+            LOG.debug(
+                f"Cannot generate thumbnail: source not found for {self.filename}"
+            )
+            return
+
+        LOG.info(f"Generating thumbnail for {self.title}")
+        if generate_thumbnail(input_path, thumb_abs):
+            self.thumbnail_filename = thumb_rel
+        else:
+            LOG.debug(f"Thumbnail generation skipped for {self.title}")
+
+    def update(
+        self,
+        platform: Optional[str] = None,
+        channel: Optional[str] = None,
+        timestamp: Optional[int] = None,
+    ):
+        orig_platform = platform or self.platform
+        orig_channel = channel or self.channel
+        orig_timestamp = timestamp or self.timestamp
+
         cur = config.db.cursor()
-        cur.execute("UPDATE videos SET platform = ?, channel = ?, title = ?, timestamp = ?, url = ?, filename = ?, chat_filename = ?, in_progress = ? WHERE platform = ? AND channel = ? AND timestamp = ?",
-                    (self.platform, self.channel, self.title, self.timestamp, self.url, self.filename, self.chat_filename, self.in_progress, platform, channel, timestamp))
+        cur.execute(
+            """UPDATE videos
+               SET platform = ?, channel = ?, title = ?, timestamp = ?,
+                   url = ?, filename = ?, chat_filename = ?,
+                   thumbnail_filename = ?, in_progress = ?
+               WHERE platform = ? AND channel = ? AND timestamp = ?""",
+            (
+                self.platform,
+                self.channel,
+                self.title,
+                self.timestamp,
+                self.url,
+                self.filename,
+                self.chat_filename,
+                self.thumbnail_filename,
+                self.in_progress,
+                orig_platform,
+                orig_channel,
+                orig_timestamp,
+            ),
+        )
         config.db.commit()
 
     async def delete(self):
-        """
-        Deletes the recording from disk.
-
-        This must be called from the main thread.
-        """
-        if self.in_progress: self.abort()
+        if self.in_progress:
+            self.abort()
         cur = config.db.cursor()
-        cur.execute("DELETE FROM videos WHERE platform = ? AND channel = ? AND timestamp = ?", (self.platform, self.channel, self.timestamp))
+        cur.execute(
+            "DELETE FROM videos WHERE platform = ? AND channel = ? AND timestamp = ?",
+            (self.platform, self.channel, self.timestamp),
+        )
         config.db.commit()
-        try:
-            os.remove(config.saveDir + "/" + self.filename)
-            if self.chat_filename is not None: os.remove(config.saveDir + "/" + self.chat_filename)
-        except: pass
+        for attr in ("filename", "chat_filename", "thumbnail_filename"):
+            val = getattr(self, attr, None)
+            if val:
+                try:
+                    os.remove(os.path.join(config.saveDir, val))
+                except OSError:
+                    pass
 
-    def _dump(self):
+    def _dump(self) -> dict:
+        file_path = "/files/" + self.filename
         return {
             "platform": self.platform,
             "channel": self.channel,
             "title": self.title,
             "timestamp": self.timestamp,
             "original_url": self.url,
-            "path": "/files/" + self.filename,
-            "chat_path": "/files/" + self.chat_filename if self.chat_filename is not None else None,
-            "in_progress": self.in_progress
+            "path": file_path,
+            "hls_path": _make_hls_path(file_path),
+            "chat_path": (
+                "/files/" + self.chat_filename
+                if self.chat_filename is not None
+                else None
+            ),
+            "thumbnail_path": (
+                "/files/" + self.thumbnail_filename
+                if self.thumbnail_filename is not None
+                else None
+            ),
+            "in_progress": self.in_progress,
         }
 
     def _ytdlProgress(self, _):
@@ -235,22 +359,24 @@ class RecordingInfo:
             self._stop = False
             raise KeyboardInterrupt()
 
-    def _ytdlMain(self, dl: YoutubeDL, loop: asyncio.EventLoop):
+    def _ytdlMain(self, dl: YoutubeDL, loop: asyncio.AbstractEventLoop):
         dl.add_progress_hook(self._ytdlProgress)
-        try: dl.download(self.url)
-        except: LOG.error("A download error occurred in " + self.title)
+        try:
+            dl.download(self.url)
+        except Exception:
+            LOG.error(f"A download error occurred in {self.title}")
         finally:
             self.in_progress = False
             if not self._abort:
-                if not self.in_progress and self.filename.endswith(".ts") and config.remuxRecordings:
+                if self.filename.endswith(".ts") and config.remuxRecordings:
                     self.remux()
+
+                self.generate_thumbnail()
                 loop.call_soon_threadsafe(self.update)
             self._ytdlProcess = None
 
+
 class Channel:
-    """
-    Contains information about a channel to monitor.
-    """
     url: str
     getChat: bool
     platform: Optional[str]
@@ -260,65 +386,74 @@ class Channel:
 
     def __init__(self, obj: dict):
         self.url = obj["url"]
-        self.getChat = obj["getChat"]
-        if "platform" in obj: self.platform = obj["platform"]
-        else: self.platform = None
-        if "ytdlParams" in obj: self.ytdlParams = obj["ytdlParams"]
-        else: self.ytdlParams = None
-        if "retention" in obj and obj["retention"] is not None: self.retention = Retention(obj["retention"])
-        else: self.retention = None
-        if "quality" in obj: self.quality = obj["quality"]
-        else: self.quality = None
+        self.getChat = obj.get("getChat", False)
+        self.platform = obj.get("platform")
+        self.ytdlParams = obj.get("ytdlParams")
+        self.quality = obj.get("quality")
+        retention_data = obj.get("retention")
+        self.retention = (
+            Retention(retention_data) if retention_data is not None else None
+        )
 
-    def _check_live(self, loop: asyncio.EventLoop, future: asyncio.Future):
-        dl = YoutubeDL(self.ytdlParams) # type: ignore
-        if not ("noprogress" in dl.params) and LOG.level > logging.DEBUG: dl.params["noprogress"] = True
-        if not ("quiet" in dl.params) and LOG.level > logging.DEBUG: dl.params["quiet"] = True
+    def _check_live(self, loop: asyncio.AbstractEventLoop, future: asyncio.Future):
+        params = dict(self.ytdlParams) if self.ytdlParams else {}
+        dl = YoutubeDL(params)
+        if LOG.level > logging.DEBUG:
+            dl.params.setdefault("noprogress", True)
+            dl.params.setdefault("quiet", True)
         try:
             info = dl.extract_info(self.url, False)
         except utils.DownloadError:
             loop.call_soon_threadsafe(future.set_result, (False, None))
             return
-        loop.call_soon_threadsafe(future.set_result, (True, (dl, info))) # type: ignore
+        loop.call_soon_threadsafe(future.set_result, (True, (dl, info)))
 
     async def check_live(self) -> tuple[bool, Any]:
-        """
-        Checks if the channel is live, and if so, returns some internal metadata
-        to pass to download.
-
-        :returns: Whether the channel is live, and if so, an opaque value to pass to `download`
-        """
-        future = asyncio.Future()
-        thread = threading.Thread(target=self._check_live, args=[asyncio.current_task().get_loop(), future]) # type: ignore
+        future: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        thread = threading.Thread(target=self._check_live, args=[loop, future])
         thread.start()
         res = await future
-        #print(res)
         thread.join()
         return res
-    
-    def _download(self, name: str, arg: tuple[YoutubeDL, dict], loop: asyncio.EventLoop, future: asyncio.Future):
+
+    def _download(
+        self,
+        name: str,
+        arg: tuple[YoutubeDL, dict],
+        loop: asyncio.AbstractEventLoop,
+        future: asyncio.Future,
+    ):
         dl, info = arg
         dl.params["format"] = self.quality or "bestvideo+bestaudio"
         try:
-            loop.call_soon_threadsafe(future.set_result, RecordingInfo._create_ytdl(loop, dl, info, self.getChat, self.platform or info["extractor_key"], name, info["description"] if info["title"].find("(live)") != -1 else info["title"])) # type: ignore
+            title = (
+                info["description"]
+                if "(live)" in info.get("title", "")
+                else info["title"]
+            )
+            result = RecordingInfo._create_ytdl(
+                loop,
+                dl,
+                info,
+                self.getChat,
+                self.platform or info["extractor_key"],
+                name,
+                title,
+            )
+            loop.call_soon_threadsafe(future.set_result, result)
         except BaseException as e:
             loop.call_soon_threadsafe(future.set_exception, e)
 
     async def download(self, name: str, live_arg: Any) -> RecordingInfo:
-        """
-        Attempts to start a recording session for a channel after checking if
-        the channel is live.
-
-        :param name: The name of the channel
-        :param live_arg: The second parameter returned by check_live
-        :param completion: A completion handler to call when the recording finishes
-        :returns: A new recording session
-        """
-        future = asyncio.Future()
-        thread = threading.Thread(target=self._download, args=[name, live_arg, asyncio.current_task().get_loop(), future]) # type: ignore
+        future: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        thread = threading.Thread(
+            target=self._download,
+            args=[name, live_arg, loop, future],
+        )
         thread.start()
         res = await future
-        #print(res)
         thread.join()
         return res
 
@@ -329,7 +464,8 @@ class Channel:
             "platform": self.platform,
             "quality": self.quality,
             "retention": self.retention._dump() if self.retention is not None else None,
-            "ytdlParams": self.ytdlParams
+            "ytdlParams": self.ytdlParams,
         }
+
 
 recordings: list[RecordingInfo] = []

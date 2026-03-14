@@ -1,26 +1,372 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-bs-theme="dark">
     <head>
         {% block head %}
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{% block title %}{% endblock %} - yt-dvr</title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+        <link
+            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+            integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
+            crossorigin="anonymous"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+        />
+        <style>
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                display: inline-block;
+            }
+            .status-dot.recording {
+                background-color: #d66;
+                animation: pulse 1.5s infinite;
+            }
+            .status-dot.online {
+                background-color: #6d6;
+            }
+            @keyframes pulse {
+                0% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.4;
+                }
+                100% {
+                    opacity: 1;
+                }
+            }
+            .search-highlight {
+                background-color: rgba(255, 193, 7, 0.3);
+                border-radius: 2px;
+                padding: 0 2px;
+            }
+            .thumbnail-container {
+                position: relative;
+                overflow: hidden;
+                aspect-ratio: 16/9;
+                background: var(--bs-tertiary-bg);
+            }
+            .thumbnail-container img.video-thumbnail {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+            .thumbnail-placeholder {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100%;
+                height: 100%;
+                color: var(--bs-secondary-color);
+                font-size: 2rem;
+            }
+            .platform-badge {
+                position: absolute;
+                bottom: 6px;
+                left: 6px;
+                background: rgba(0, 0, 0, 0.6);
+                padding: 4px;
+                border-radius: 4px;
+                line-height: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .duration-badge {
+                position: absolute;
+                bottom: 4px;
+                right: 4px;
+                background: rgba(0, 0, 0, 0.8);
+                color: #fff;
+                padding: 1px 6px;
+                border-radius: 3px;
+                font-size: 0.75rem;
+            }
+            .recording-badge {
+                position: absolute;
+                top: 4px;
+                left: 4px;
+            }
+            .navbar-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.85rem;
+                color: var(--bs-secondary-color);
+            }
+            .card-selectable {
+                cursor: pointer;
+                transition:
+                    border-color 0.15s,
+                    box-shadow 0.15s;
+            }
+            .card-selectable.selected {
+                border-color: var(--bs-primary) !important;
+                box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.25);
+            }
+            .card-selectable .select-check {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                z-index: 2;
+            }
+            .bulk-bar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 1050;
+                transition: transform 0.3s;
+            }
+            .bulk-bar.hidden {
+                transform: translateY(100%);
+            }
+            .fade-in {
+                animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                    transform: translateY(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+            .disk-usage-bar {
+                height: 6px;
+                border-radius: 3px;
+            }
+        </style>
         {% endblock %}
     </head>
     <body>
-        <nav id="header" class="navbar navbar-expand-lg bg-body-tertiary">
+        <nav
+            id="header"
+            class="navbar navbar-expand-lg bg-body-tertiary sticky-top"
+        >
             <div class="container-fluid">
-                <a class="navbar-brand" href="/">yt-dvr</a>
-                <div class="navbar-collapse show" id="navbarNavAltMarkup">
-                    <div class="navbar-nav">
-                        <a class="nav-link" href="/channels">Channels</a>
-                        <a class="nav-link" href="/settings">Settings</a>
+                <a
+                    class="navbar-brand d-flex align-items-center gap-2"
+                    href="/"
+                >
+                    <i class="bi bi-record-circle"></i> yt-dvr
+                </a>
+                <button
+                    class="navbar-toggler"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#navbarContent"
+                    aria-controls="navbarContent"
+                    aria-expanded="false"
+                    aria-label="Toggle navigation"
+                >
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarContent">
+                    <div class="navbar-nav me-auto">
+                        <a class="nav-link" href="/">
+                            <i class="bi bi-house"></i> Home
+                        </a>
+                        <a class="nav-link" href="/channels">
+                            <i class="bi bi-collection-play"></i> Channels
+                        </a>
+                        <a class="nav-link" href="/dashboard">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                        <a class="nav-link" href="/settings">
+                            <i class="bi bi-gear"></i> Settings
+                        </a>
                     </div>
+                    <form
+                        class="d-flex me-3"
+                        role="search"
+                        action="/search"
+                        method="GET"
+                    >
+                        <div class="input-group">
+                            <input
+                                class="form-control"
+                                type="search"
+                                name="q"
+                                placeholder="Search videos..."
+                                aria-label="Search"
+                                value="{{ request.args.get('q', '') if request else '' }}"
+                            />
+                            <button
+                                class="btn btn-outline-secondary"
+                                type="submit"
+                            >
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="navbar-status me-3" id="navbarStatus">
+                        <span class="status-dot" id="navStatusDot"></span>
+                        <span id="navStatusText">Loading...</span>
+                    </div>
+                    <button
+                        class="btn btn-sm btn-outline-secondary"
+                        id="themeToggle"
+                        onclick="toggleTheme()"
+                        title="Toggle theme"
+                    >
+                        <i class="bi bi-sun-fill" id="themeIcon"></i>
+                    </button>
                 </div>
             </div>
         </nav>
-        <div id="content" class="bg-body-primary">{% block content %}{% endblock %}</div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+        <div
+            id="notifications-area"
+            class="position-fixed top-0 end-0 p-3"
+            style="z-index: 1100; margin-top: 60px"
+        ></div>
+
+        <div id="content" class="bg-body-primary">
+            {% block content %}{% endblock %}
+        </div>
+
+        <footer class="bg-body-tertiary text-center text-muted py-3 mt-4">
+            <small>yt-dvr &mdash; Stream Recording Manager</small>
+        </footer>
+
+        <script
+            src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+            crossorigin="anonymous"
+        ></script>
+        <script>
+            // Theme management
+            function getPreferredTheme() {
+                var saved = localStorage.getItem("yt-dvr-theme");
+                if (saved) return saved;
+                return "dark";
+            }
+
+            function setTheme(theme) {
+                document.documentElement.setAttribute("data-bs-theme", theme);
+                localStorage.setItem("yt-dvr-theme", theme);
+                var icon = document.getElementById("themeIcon");
+                if (icon) {
+                    icon.className =
+                        theme === "dark" ? "bi bi-sun-fill" : "bi bi-moon-fill";
+                }
+            }
+
+            function toggleTheme() {
+                var current =
+                    document.documentElement.getAttribute("data-bs-theme");
+                setTheme(current === "dark" ? "light" : "dark");
+            }
+
+            setTheme(getPreferredTheme());
+
+            // Navbar status polling
+            var _lastRecordingCount = 0;
+
+            function updateNavStatus() {
+                fetch("/api/status")
+                    .then(function (res) {
+                        return res.json();
+                    })
+                    .then(function (data) {
+                        var dot = document.getElementById("navStatusDot");
+                        var text = document.getElementById("navStatusText");
+                        if (data.active_recordings > 0) {
+                            dot.className = "status-dot recording";
+                            text.textContent =
+                                data.active_recordings +
+                                " recording" +
+                                (data.active_recordings > 1 ? "s" : "");
+                        } else {
+                            dot.className = "status-dot online";
+                            text.textContent = data.total_videos + " videos";
+                        }
+
+                        // Notify on new recordings
+                        if (
+                            data.active_recordings > _lastRecordingCount &&
+                            _lastRecordingCount >= 0
+                        ) {
+                            var diff =
+                                data.active_recordings - _lastRecordingCount;
+                            if (_lastRecordingCount > 0) {
+                                showNotification(
+                                    diff +
+                                        " new recording" +
+                                        (diff > 1 ? "s" : "") +
+                                        " started!",
+                                    "primary",
+                                );
+                            }
+                        }
+                        _lastRecordingCount = data.active_recordings;
+                    })
+                    .catch(function () {
+                        var dot = document.getElementById("navStatusDot");
+                        var text = document.getElementById("navStatusText");
+                        dot.className = "status-dot";
+                        dot.style.backgroundColor = "#999";
+                        text.textContent = "Offline";
+                    });
+            }
+
+            function showNotification(message, type) {
+                var area = document.getElementById("notifications-area");
+                var id = "notif-" + Date.now();
+                var html =
+                    '<div id="' +
+                    id +
+                    '" class="toast show fade-in" role="alert">' +
+                    '<div class="toast-header">' +
+                    '<span class="status-dot recording me-2"></span>' +
+                    '<strong class="me-auto">yt-dvr</strong>' +
+                    '<button type="button" class="btn-close" data-bs-dismiss="toast"></button>' +
+                    "</div>" +
+                    '<div class="toast-body">' +
+                    message +
+                    "</div></div>";
+                area.insertAdjacentHTML("beforeend", html);
+                setTimeout(function () {
+                    var el = document.getElementById(id);
+                    if (el) el.remove();
+                }, 5000);
+            }
+
+            updateNavStatus();
+            setInterval(updateNavStatus, 10000);
+
+            // Utility: format file size
+            function formatSize(bytes) {
+                if (bytes === 0) return "0 B";
+                var units = ["B", "KB", "MB", "GB", "TB"];
+                var i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return (bytes / Math.pow(1024, i)).toFixed(1) + " " + units[i];
+            }
+
+            // Utility: format duration
+            function formatDuration(seconds) {
+                var h = Math.floor(seconds / 3600);
+                var m = Math.floor((seconds % 3600) / 60);
+                var s = Math.floor(seconds % 60);
+                if (h > 0)
+                    return (
+                        h +
+                        ":" +
+                        String(m).padStart(2, "0") +
+                        ":" +
+                        String(s).padStart(2, "0")
+                    );
+                return m + ":" + String(s).padStart(2, "0");
+            }
+        </script>
+        {% block scripts %}{% endblock %}
     </body>
 </html>

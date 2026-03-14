@@ -1,10 +1,15 @@
-from typing import Optional, cast, TYPE_CHECKING
-import importlib
 import json
 import logging
 import sqlite3
-if TYPE_CHECKING: from channel import Channel
-else: Channel = object
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from channel import Channel
+else:
+    Channel = object
+
+LOG = logging.getLogger("yt-dvr")
+
 
 class Retention:
     count: Optional[int]
@@ -16,16 +21,20 @@ class Retention:
         self.time = None
         self.size = None
         if obj is not None:
-            if "count" in obj and type(obj["count"]) == int: self.count = obj["count"]
-            if "time" in obj and type(obj["time"]) == int: self.time = obj["time"]
-            if "size" in obj and type(obj["size"]) == int: self.size = obj["size"]
+            if isinstance(obj.get("count"), int):
+                self.count = obj["count"]
+            if isinstance(obj.get("time"), int):
+                self.time = obj["time"]
+            if isinstance(obj.get("size"), int):
+                self.size = obj["size"]
 
     def _dump(self) -> dict:
         return {
             "count": self.count,
             "time": self.time,
-            "size": self.size
+            "size": self.size,
         }
+
 
 class Config:
     saveDir: str
@@ -53,50 +62,50 @@ class Config:
 
     def load(self, path: str):
         try:
-            dict = {}
             with open(path, "r") as file:
-                dict = json.load(file)
-            self.saveDir = dict["saveDir"]
-            self.serverPort = dict["serverPort"]
-            self.defaultRetention = Retention(dict["defaultRetention"])
-            self.globalRetention = Retention(dict["globalRetention"])
-            channel = importlib.import_module("channel")
-            self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
-            self.pollInterval = dict["pollInterval"]
-            self.remuxRecordings = dict["remuxRecordings"]
-            self.remuxFormat = dict["remuxFormat"]
-            self.logLevel = dict["logLevel"] if "logLevel" in dict else "INFO"
-        except FileNotFoundError: pass
+                data = json.load(file)
+            self.saveDir = data.get("saveDir", self.saveDir)
+            self.serverPort = data.get("serverPort", self.serverPort)
+            self.defaultRetention = Retention(data.get("defaultRetention"))
+            self.globalRetention = Retention(data.get("globalRetention"))
+            self.pollInterval = data.get("pollInterval", self.pollInterval)
+            self.remuxRecordings = data.get("remuxRecordings", self.remuxRecordings)
+            self.remuxFormat = data.get("remuxFormat", self.remuxFormat)
+            self.logLevel = data.get("logLevel", "INFO")
+
+            import importlib
+
+            channel_module = importlib.import_module("channel")
+            self.channels = {
+                k: channel_module.Channel(obj=c)
+                for k, c in data.get("channels", {}).items()
+            }
+        except FileNotFoundError:
+            pass
 
     def _dump(self, partial: bool = False) -> dict:
-        if partial:
-            return {
-                "saveDir": self.saveDir,
-                "serverPort": self.serverPort,
-                "defaultRetention": self.defaultRetention._dump(),
-                "globalRetention": self.globalRetention._dump(),
-                "pollInterval": self.pollInterval,
-                "remuxRecordings": self.remuxRecordings,
-                "remuxFormat": self.remuxFormat,
-                "logLevel": self.logLevel,
-            }
-        return {
+        result = {
             "saveDir": self.saveDir,
             "serverPort": self.serverPort,
             "defaultRetention": self.defaultRetention._dump(),
             "globalRetention": self.globalRetention._dump(),
-            "channels": {k: channel._dump() for k, channel in self.channels.items()},
             "pollInterval": self.pollInterval,
             "remuxRecordings": self.remuxRecordings,
             "remuxFormat": self.remuxFormat,
             "logLevel": self.logLevel,
         }
+        if not partial:
+            result["channels"] = {
+                k: channel._dump() for k, channel in self.channels.items()
+            }
+        return result
 
     def dumps(self) -> str:
         return json.dumps(self._dump(), indent=4)
 
     def save(self, path: str):
-        with open(path, "w") as file: file.write(self.dumps())
+        with open(path, "w") as file:
+            file.write(self.dumps())
+
 
 config = Config()
-LOG = logging.getLogger("yt-dvr")

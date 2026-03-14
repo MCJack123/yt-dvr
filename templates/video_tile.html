@@ -1,9 +1,73 @@
-<div class="col col-4">
-    <div class="card bg-body-secondary h-100">
-        <div class="card-body">
-            <h5 class="card-title"><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if video.in_progress else 'none' }};"></span> <a href="/channels/{{ video.channel }}/{{ video.timestamp }}">{{ video.title }}</a></h5>
-            <h6 class="card-text"><a class="link-secondary" href="/channels/{{ video.channel }}">{{ video.channel }}</a></h6>
-            <h6 class="card-text">{{ formatdate(video.timestamp) }}</h6>
+<div class="col fade-in">
+    <div
+        class="card bg-body-secondary h-100 card-selectable position-relative"
+        data-video-channel="{{ video.channel }}"
+        data-video-timestamp="{{ video.timestamp }}"
+    >
+        <input
+            type="checkbox"
+            class="form-check-input select-check d-none"
+            onchange="onVideoSelect(this)"
+            data-channel="{{ video.channel }}"
+            data-timestamp="{{ video.timestamp }}"
+        />
+
+        <div class="thumbnail-container">
+            {% if video.thumbnail_path %}
+            <img
+                class="video-thumbnail"
+                src="{{ video.thumbnail_path }}"
+                alt="{{ video.title }}"
+                loading="lazy"
+                onerror="
+                    this.parentElement.innerHTML =
+                        '<div class=\'thumbnail-placeholder\'><i class=\'bi bi-film\'></i></div>'
+                "
+            />
+            {% else %}
+            <div class="thumbnail-placeholder">
+                <i class="bi bi-film"></i>
+            </div>
+            {% endif %} {% if video.in_progress %}
+            <span class="recording-badge badge bg-danger">
+                <i class="bi bi-record-fill"></i> LIVE
+            </span>
+            {% endif %}
+
+            <span class="platform-badge">
+                {% set platform = video.platform %} {% set size = 16 %} {%
+                include 'platform_icon.html' %}
+            </span>
+        </div>
+
+        <div class="card-body py-2 px-3">
+            <h6 class="card-title text-truncate mb-1" title="{{ video.title }}">
+                <a
+                    href="/channels/{{ video.channel }}/{{ video.timestamp }}"
+                    class="text-decoration-none stretched-link"
+                >
+                    {{ video.title }}
+                </a>
+            </h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted text-truncate">
+                    <a
+                        class="link-secondary text-decoration-none"
+                        href="/channels/{{ video.channel }}"
+                        style="position: relative; z-index: 2"
+                    >
+                        {{ video.channel }}
+                    </a>
+                </small>
+                <small class="text-muted ms-1 text-nowrap">
+                    {{ formatdate(video.timestamp) }}
+                </small>
+            </div>
+            {% if video.file_size_formatted %}
+            <small class="text-muted d-block mt-1">
+                <i class="bi bi-hdd"></i> {{ video.file_size_formatted }}
+            </small>
+            {% endif %}
         </div>
     </div>
 </div>

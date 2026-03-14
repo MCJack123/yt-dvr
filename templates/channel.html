@@ -1,152 +1,315 @@
 {% extends "base.html" %}
-{% block title %}Channel {{ channel }} {% endblock %}
+{% block title %}Channel {{ channel }}{% endblock %}
 {% block content %}
-    <style>
-        .accordion {
-            --bs-accordion-active-bg: transparent !important;
-        }
-
-        .accordion-button, .accordion-header {
-            --bs-accordion-btn-focus-box-shadow: none;
-        }
-    </style>
-    <script>
-        function updateChannel() {
-            if (document.getElementById("ytdlParams").value !== "") {
-                try {
-                    let v = JSON.parse(document.getElementById("ytdlParams").value);
-                    if (typeof v !== "object" || v instanceof Array) {
-                        alert("Please enter a valid JSON object into yt-dl parameters.");
-                        return;
-                    }
-                } catch {
+<style>
+    .accordion {
+        --bs-accordion-active-bg: transparent !important;
+    }
+    .accordion-button,
+    .accordion-header {
+        --bs-accordion-btn-focus-box-shadow: none;
+    }
+</style>
+<script>
+    function updateChannel() {
+        var ytdlField = document.getElementById("ytdlParams").value;
+        if (ytdlField !== "") {
+            try {
+                var v = JSON.parse(ytdlField);
+                if (typeof v !== "object" || Array.isArray(v)) {
                     alert("Please enter a valid JSON object into yt-dl parameters.");
                     return;
                 }
+            } catch (e) {
+                alert("Please enter a valid JSON object into yt-dl parameters.");
+                return;
             }
-            fetch("/api/channels/{{ channel }}", {
-                method: "PUT",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    url: document.getElementById("url").value,
-                    platform: document.getElementById("platform").value || null,
-                    quality: document.getElementById("quality").value || null,
-                    getChat: document.getElementById("getChat").checked,
-                    retention: document.getElementById("retention").checked ? {
-                        count: parseInt(document.getElementById("count").value) > 0 ? parseInt(document.getElementById("count").value) : null,
-                        size: parseInt(document.getElementById("size").value) > 0 ? parseInt(document.getElementById("size").value) : null,
-                        time: parseInt(document.getElementById("time").value) > 0 ? parseInt(document.getElementById("time").value) : null
-                    } : null,
-                    ytdlParams: document.getElementById("ytdlParams").value !== "" ? JSON.parse(document.getElementById("ytdlParams").value) : null
-                })
-            }).then(res => {
-                if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
-            });
         }
 
-        function deleteChannel() {
-            fetch("/api/channels/{{ channel }}", {method: "DELETE"}).then(res => {
-                if (res.ok) location.href = "/channels";
-                else return res.json();
-            }).then(body => alert("Failed to delete channel: " + body.error));
-        }
-    </script>
-    <div class="container text-left" style="margin-top: 20px">
-        <div class="row justify-content-between row-cols-auto mb-3">
-            <h3>Channel {{ channel }}</h3>
+        var countVal = parseInt(document.getElementById("count").value);
+        var sizeVal = parseInt(document.getElementById("size").value);
+        var timeVal = parseInt(document.getElementById("time").value);
+
+        var payload = {
+            url: document.getElementById("url").value,
+            platform: document.getElementById("platform").value || null,
+            quality: document.getElementById("quality").value || null,
+            getChat: document.getElementById("getChat").checked,
+            retention: document.getElementById("retention").checked
+                ? {
+                      count: countVal > 0 ? countVal : null,
+                      size: sizeVal > 0 ? sizeVal : null,
+                      time: timeVal > 0 ? timeVal : null,
+                  }
+                : null,
+            ytdlParams: ytdlField !== "" ? JSON.parse(ytdlField) : null,
+        };
+
+        fetch("/api/channels/{{ channel }}", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        }).then(function (res) {
+            if (res.ok) {
+                bootstrap.Toast.getOrCreateInstance(
+                    document.getElementById("updatedToast"),
+                ).show();
+            } else {
+                return res.json().then(function (body) {
+                    alert("Failed to update channel: " + body.error);
+                });
+            }
+        });
+    }
+
+    function deleteChannel() {
+        fetch("/api/channels/{{ channel }}", { method: "DELETE" }).then(
+            function (res) {
+                if (res.ok) {
+                    location.href = "/channels";
+                } else {
+                    return res.json().then(function (body) {
+                        alert("Failed to delete channel: " + body.error);
+                    });
+                }
+            },
+        );
+    }
+
+    function checkNow() {
+        fetch("/api/channels/{{ channel }}/check", { method: "POST" })
+            .then(function(res) {
+                if (res.ok) {
+                    if (typeof showNotification === 'function') {
+                        showNotification('Checking {{ channel }}...', 'info');
+                    }
+                    setTimeout(function() { location.reload(); }, 3000);
+                }
+            });
+    }
+</script>
+<div class="container text-left" style="margin-top: 20px">
+    <div class="row justify-content-between align-items-center mb-3">
+        <div class="col-auto">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="/channels">Channels</a></li>
+                    <li class="breadcrumb-item active">{{ channel }}</li>
+                </ol>
+            </nav>
+            <h3>
+                {% if is_recording %}
+                <span class="status-dot recording me-1"></span>
+                {% endif %}
+                <i class="bi bi-collection-play"></i> {{ channel }}
+            </h3>
         </div>
-        <div class="row accordion accordion-flush mb-3" id="settingsAccordion">
-            <div class="accordion-item">
-                <h4 class="accordion-header" id="settingsHeader">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSettings" aria-expanded="true" aria-controls="collapseSettings">
-                        <h4 style="margin-left: -1.4rem">Settings</h4>
-                    </button>
-                </h4>
-                <div id="collapseSettings" class="accordion-collapse collapse" aria-labelledby="settingsHeader" data-bs-parent="#settingsAccordion">
-                    <div class="accordion-body">
-                        <form>
-                            <div class="mb-3">
-                                <label for="url" class="form-label">URL</label>
-                                <input type="text" class="form-control" id="url" value="{{ contents.url }}">
-                            </div>
-                            <div class="mb-3">
-                                <label for="platform" class="form-label">Platform</label>
-                                <input type="text" class="form-control" id="platform" value="{{ contents.platform or '' }}">
-                            </div>
-                            <div class="mb-3">
-                                <label for="quality" class="form-label">Quality</label>
-                                <input type="text" class="form-control" id="quality" value="{{ contents.quality or '' }}">
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="getChat" checked="{{ 'true' if contents.getChat else 'false' }}">
-                                <label class="form-check-label" for="getChat">Get chat?</label>
-                            </div>
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="retention" checked="{{ 'true' if contents.retention else 'false' }}" data-bs-toggle="collapse" data-bs-target="#retentionCollapse">
-                                <label class="form-check-label" for="retention">Override retention policy</label>
-                            </div>
-                            <div class="mb-3 collapse {{ 'show' if contents.retention else '' }}" id="retentionCollapse">
-                                <div class="row">
-                                    <div class="col">
-                                        <label for="count" class="form-label">Count</label>
-                                        <input type="number" class="form-control" id="count" value="{{ contents.count }}">
-                                    </div>
-                                    <div class="col">
-                                        <label for="size" class="form-label">Size (megabytes)</label>
-                                        <input type="number" class="form-control" id="size" value="{{ contents.size }}">
-                                    </div>
-                                    <div class="col">
-                                        <label for="time" class="form-label">Time (days)</label>
-                                        <input type="number" class="form-control" id="time" value="{{ contents.time }}">
-                                    </div>
+        <div class="col-auto d-flex gap-2">
+            <button class="btn btn-sm btn-outline-primary" onclick="checkNow()">
+                <i class="bi bi-arrow-repeat"></i> Check now
+            </button>
+            <a href="{{ contents['url'] }}" target="_blank"
+               class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-box-arrow-up-right"></i> Open stream
+            </a>
+        </div>
+    </div>
+
+    <div class="row accordion accordion-flush mb-3" id="settingsAccordion">
+        <div class="accordion-item">
+            <h4 class="accordion-header" id="settingsHeader">
+                <button class="accordion-button collapsed" type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#collapseSettings"
+                        aria-expanded="false"
+                        aria-controls="collapseSettings">
+                    <i class="bi bi-gear me-2"></i> Settings
+                </button>
+            </h4>
+            <div id="collapseSettings" class="accordion-collapse collapse"
+                 aria-labelledby="settingsHeader"
+                 data-bs-parent="#settingsAccordion">
+                <div class="accordion-body">
+                    <form>
+                        <div class="mb-3">
+                            <label for="url" class="form-label">URL</label>
+                            <input type="text" class="form-control" id="url"
+                                   value="{{ contents['url'] }}" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="platform" class="form-label">Platform</label>
+                            {% set cur_platform = contents.get('platform', '') or '' %}
+                            <select class="form-select" id="platform">
+                                <option value=""
+                                    {% if cur_platform == '' %}
+                                        selected
+                                    {% endif %}>
+                                    Auto-detect
+                                </option>
+                                <option value="Twitch"
+                                    {% if cur_platform == 'Twitch' %}
+                                        selected
+                                    {% endif %}>
+                                    Twitch
+                                </option>
+                                <option value="Youtube"
+                                    {% if cur_platform == 'Youtube' %}
+                                        selected
+                                    {% endif %}>
+                                    YouTube
+                                </option>
+                                <option value="Kick"
+                                    {% if cur_platform == 'Kick' %}
+                                        selected
+                                    {% endif %}>
+                                    Kick
+                                </option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="quality" class="form-label">Quality</label>
+                            <input type="text" class="form-control" id="quality"
+                                   value="{{ contents.get('quality') or '' }}"
+                                   placeholder="bestvideo+bestaudio" />
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input"
+                                   id="getChat"
+                                   {% if contents.get('getChat') %}
+                                       checked
+                                   {% endif %} />
+                            <label class="form-check-label" for="getChat">
+                                <i class="bi bi-chat-dots"></i> Record chat
+                            </label>
+                        </div>
+
+                        {% set has_retention = contents.get('retention') is not none and contents.get('retention') %}
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input"
+                                   id="retention"
+                                   {% if has_retention %}
+                                       checked
+                                   {% endif %}
+                                   data-bs-toggle="collapse"
+                                   data-bs-target="#retentionCollapse" />
+                            <label class="form-check-label" for="retention">
+                                Override retention policy
+                            </label>
+                        </div>
+                        <div class="mb-3 collapse {% if has_retention %}show{% endif %}"
+                             id="retentionCollapse">
+                            <div class="row">
+                                <div class="col">
+                                    <label for="count" class="form-label">Count</label>
+                                    <input type="number" class="form-control"
+                                           id="count"
+                                           value="{% if has_retention and contents['retention'].get('count') is not none %}{{ contents['retention']['count'] }}{% endif %}" />
+                                </div>
+                                <div class="col">
+                                    <label for="size" class="form-label">Size (MB)</label>
+                                    <input type="number" class="form-control"
+                                           id="size"
+                                           value="{% if has_retention and contents['retention'].get('size') is not none %}{{ contents['retention']['size'] }}{% endif %}" />
+                                </div>
+                                <div class="col">
+                                    <label for="time" class="form-label">Time (days)</label>
+                                    <input type="number" class="form-control"
+                                           id="time"
+                                           value="{% if has_retention and contents['retention'].get('time') is not none %}{{ contents['retention']['time'] }}{% endif %}" />
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="ytdlParams" class="form-label">yt-dl parameters (JSON - see <a href="https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py">yt-dlp converter</a>)</label>
-                                <textarea id="ytdlParams" class="form-control">{{ ytdlParams }}</textarea>
-                            </div>
-                            <div class="row row-cols-auto justify-content-between">
-                                <button type="button" class="btn btn-primary" onclick="updateChannel()">Update</button>
-                                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteChannelModal">Delete</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row row-cols-auto mb-3"><h4>Videos</h4></div>
-        <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
-            {% for video in videos %}
-                {% include 'video_tile.html' %}
-            {% endfor %}
-        </div>
-    </div>
-    <div class="modal fade" id="deleteChannelModal" tabindex="-1" aria-labelledby="deleteChannelModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="deleteChannelModalLabel">Delete channel {{ channel }} </h1>
-                </div>
-                <div class="modal-body">
-                    Are you sure you wish to delete the channel {{ channel }}?
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" onclick="deleteChannel()">Confirm</button>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ytdlParams" class="form-label">
+                                yt-dlp parameters (JSON)
+                                <a href="https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py"
+                                   target="_blank" class="ms-1">
+                                    <i class="bi bi-question-circle"></i>
+                                </a>
+                            </label>
+                            <textarea id="ytdlParams" class="form-control"
+                                      rows="3">{{ ytdlParams }}</textarea>
+                        </div>
+                        <div class="row row-cols-auto justify-content-between">
+                            <button type="button" class="btn btn-primary"
+                                    onclick="updateChannel()">
+                                <i class="bi bi-check-lg"></i> Update
+                            </button>
+                            <button type="button" class="btn btn-danger"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deleteChannelModal">
+                                <i class="bi bi-trash"></i> Delete Channel
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
     </div>
-    <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast" id="updatedToast" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="toast-header">
-                <img src="..." class="rounded me-2" alt="...">
-                <strong class="me-auto">Updated settings</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+
+    <div class="row align-items-center mb-3">
+        <div class="col-auto">
+            <h4>
+                <i class="bi bi-camera-video"></i>
+                Videos ({{ videos | length }})
+            </h4>
+        </div>
+    </div>
+
+    {% if videos | length == 0 %}
+    <div class="text-center py-4 text-muted">
+        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+        <p class="mt-2">No recordings yet for this channel.</p>
+    </div>
+    {% else %}
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 g-md-3">
+        {% for video in videos %}
+        {% include 'video_tile.html' %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="modal fade" id="deleteChannelModal" tabindex="-1"
+     aria-labelledby="deleteChannelModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="deleteChannelModalLabel">
+                    Delete channel {{ channel }}
+                </h1>
             </div>
-            <div class="toast-body">
-                The channel info has been updated successfully.
+            <div class="modal-body">
+                <p>Are you sure you wish to delete the channel
+                   <strong>{{ channel }}</strong>?</p>
+                <p class="text-muted">
+                    Existing recordings will remain on disk but won't be managed.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary"
+                        data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger"
+                        onclick="deleteChannel()">
+                    <i class="bi bi-trash"></i> Confirm Delete
+                </button>
             </div>
         </div>
     </div>
+</div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div class="toast" id="updatedToast" role="alert"
+         aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-check-circle-fill text-success me-2"></i>
+            <strong class="me-auto">Updated settings</strong>
+            <button type="button" class="btn-close"
+                    data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            The channel info has been updated successfully.
+        </div>
+    </div>
+</div>
 {% endblock %}

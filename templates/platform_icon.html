@@ -1,0 +1,88 @@
+{% set _p = platform | lower if platform else '' %} {% if 'twitch' in _p %}
+<img
+    src="https://cdn.simpleicons.org/twitch/9146FF"
+    alt="Twitch"
+    title="Twitch"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'youtube' in _p or 'yt' == _p %}
+<img
+    src="https://cdn.simpleicons.org/youtube/FF0000"
+    alt="YouTube"
+    title="YouTube"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'kick' in _p %}
+<img
+    src="https://cdn.simpleicons.org/kick/53FC18"
+    alt="Kick"
+    title="Kick"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'tiktok' in _p %}
+<img
+    src="https://cdn.simpleicons.org/tiktok/FFFFFF"
+    alt="TikTok"
+    title="TikTok"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'instagram' in _p %}
+<img
+    src="https://cdn.simpleicons.org/instagram/E4405F"
+    alt="Instagram"
+    title="Instagram"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'facebook' in _p %}
+<img
+    src="https://cdn.simpleicons.org/facebook/1877F2"
+    alt="Facebook"
+    title="Facebook"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'twitter' in _p or 'x.com' in _p %}
+<img
+    src="https://cdn.simpleicons.org/x/FFFFFF"
+    alt="X/Twitter"
+    title="X/Twitter"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'vimeo' in _p %}
+<img
+    src="https://cdn.simpleicons.org/vimeo/1AB7EA"
+    alt="Vimeo"
+    title="Vimeo"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% elif 'dailymotion' in _p %}
+<img
+    src="https://cdn.simpleicons.org/dailymotion/0066DC"
+    alt="Dailymotion"
+    title="Dailymotion"
+    width="{{ size|default(16) }}"
+    height="{{ size|default(16) }}"
+    style="display: inline-block; vertical-align: middle"
+/>
+{% else %}
+<i
+    class="bi bi-broadcast"
+    title="{{ platform or 'Unknown' }}"
+    style="font-size:{{ size|default(16) }}px;vertical-align:middle;"
+></i>
+{% endif %}

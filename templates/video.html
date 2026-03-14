@@ -1,55 +1,338 @@
-{% extends "base.html" %}
-{% block title %}{{ info.title }}{% endblock %}
-{% block content %}
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script>
-        function loadHls() {
-            var video = document.getElementById('video');
-            // TODO: fix URL replacement
-            var videoSrc = '{{ info.path.replace(".mp4", ".m3u8").replace(".ts", ".m3u8").replace(".webm", ".m3u8").replace(".mkv", ".m3u8") }}';
-            if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoSrc;
-            } else if (Hls.isSupported()) {
-                var hls = new Hls({
-                    "maxMaxBufferLength": 1,
-                    "backBufferLength": 1,
-                    "progressive": true,
-                });
-                hls.loadSource(videoSrc);
-                hls.attachMedia(video);
-            }
+{% extends "base.html" %} {% block title %}{{ info.title }}{% endblock %} {%
+block content %}
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script>
+    function loadHls() {
+        var video = document.getElementById("video");
+        var videoSrc = "{{ info.hls_path }}";
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = videoSrc;
+        } else if (Hls.isSupported()) {
+            var hls = new Hls({
+                maxMaxBufferLength: 1,
+                backBufferLength: 1,
+                progressive: true,
+            });
+            hls.loadSource(videoSrc);
+            hls.attachMedia(video);
         }
+    }
 
-        function deleteVideo() {
-            fetch("/api/channels/{{ info.channel }}/{{ info.timestamp }}", {method: "DELETE"}).then(res => {
-                if (res.ok) history.back();
-                else return res.json();
-            }).then(body => alert("Failed to delete video: " + body.error));
+    function deleteVideo() {
+        fetch("/api/channels/{{ info.channel }}/{{ info.timestamp }}", {
+            method: "DELETE",
+        }).then(function (res) {
+            if (res.ok) {
+                history.back();
+            } else {
+                return res.json().then(function (body) {
+                    alert("Failed to delete video: " + body.error);
+                });
+            }
+        });
+    }
+
+    function downloadVideo() {
+        var a = document.createElement('a');
+        a.href = "{{ info.path }}";
+        a.download = "";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function copyLink() {
+        navigator.clipboard.writeText(window.location.href).then(function() {
+            if (typeof showNotification === 'function') {
+                showNotification('Link copied to clipboard!', 'success');
+            }
+        });
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        var video = document.getElementById('video');
+        if (!video) return;
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        switch(e.key) {
+            case ' ': case 'k':
+                e.preventDefault();
+                video.paused ? video.play() : video.pause();
+                break;
+            case 'f':
+                e.preventDefault();
+                if (document.fullscreenElement) document.exitFullscreen();
+                else video.requestFullscreen();
+                break;
+            case 'm':
+                e.preventDefault();
+                video.muted = !video.muted;
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                video.currentTime -= (e.shiftKey ? 30 : 10);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                video.currentTime += (e.shiftKey ? 30 : 10);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                video.volume = Math.min(1, video.volume + 0.1);
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                video.volume = Math.max(0, video.volume - 0.1);
+                break;
         }
-    </script>
-    <div class="container text-left" style="margin-top: 20px">
-        <video id="video" class="ratio ratio-16x9 w-100" controls>
-            <source src="{{ info.path }}" type="video/mp4" onerror="loadHls()">
-        </video>
-        <h3><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if info.in_progress else 'none' }};"></span> {{ info.title }}</h3>
-        <h5><a class="link-secondary" href="/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
-        <p>{{ formattime(info.timestamp) }}</p>
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteVideoModal">Delete</button>
+    });
+
+    {% if info.in_progress %}
+    setInterval(function() {
+        fetch('/api/channels/{{ info.channel }}/{{ info.timestamp }}')
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (!data.in_progress) {
+                    var dot = document.getElementById('liveIndicator');
+                    if (dot) dot.style.display = 'none';
+                    if (typeof showNotification === 'function') {
+                        showNotification('Recording has ended.', 'info');
+                    }
+                }
+            });
+    }, 15000);
+    {% endif %}
+</script>
+
+<div class="container text-left" style="margin-top: 20px">
+    <nav aria-label="breadcrumb" class="mb-2">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="/channels">Channels</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="/channels/{{ info.channel }}">{{ info.channel }}</a>
+            </li>
+            <li
+                class="breadcrumb-item active text-truncate"
+                style="max-width: 300px"
+                title="{{ info.title }}"
+            >
+                {{ info.title }}
+            </li>
+        </ol>
+    </nav>
+
+    <div class="row g-3">
+        <!-- Video player -->
+        <div class="col-lg-{% if info.chat_path %}8{% else %}12{% endif %}">
+            <video
+                id="video"
+                class="w-100 rounded bg-black"
+                controls
+                style="max-height: 70vh"
+                {%
+                if
+                info.in_progress
+                %}autoplay{%
+                endif
+                %}
+                {%
+                if
+                info.thumbnail_path
+                %}
+                poster="{{ info.thumbnail_path }}"
+                {%
+                endif
+                %}
+            >
+                <source
+                    src="{{ info.path }}"
+                    type="video/mp4"
+                    onerror="loadHls()"
+                />
+            </video>
+        </div>
+
+        <!-- Chat sidebar -->
+        {% if info.chat_path %}
+        <div class="col-lg-4">
+            <div class="card bg-body-secondary h-100" style="max-height: 70vh">
+                <div class="card-header d-flex align-items-center gap-2">
+                    <i class="bi bi-chat-dots"></i> Chat Log
+                </div>
+                <div
+                    class="card-body p-0"
+                    style="overflow-y: auto; font-size: 0.8rem"
+                >
+                    <pre
+                        id="chatContent"
+                        class="p-2 mb-0"
+                        style="white-space: pre-wrap; word-break: break-word"
+                    >
+Loading...</pre
+                    >
+                </div>
+                <div class="card-footer p-2">
+                    <a
+                        href="{{ info.chat_path }}"
+                        download
+                        class="btn btn-sm btn-outline-secondary w-100"
+                    >
+                        <i class="bi bi-download"></i> Download chat
+                    </a>
+                </div>
+            </div>
+            <script>
+                fetch("{{ info.chat_path }}")
+                    .then(function (r) {
+                        return r.text();
+                    })
+                    .then(function (t) {
+                        var el = document.getElementById("chatContent");
+                        el.textContent = t || "(No messages)";
+                        el.parentElement.scrollTop =
+                            el.parentElement.scrollHeight;
+                    })
+                    .catch(function () {
+                        document.getElementById("chatContent").textContent =
+                            "(Failed to load chat)";
+                    });
+            </script>
+        </div>
+        {% endif %}
     </div>
-    <div class="modal fade" id="deleteVideoModal" tabindex="-1" aria-labelledby="deleteVideoModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="deleteVideoModalLabel">Delete video</h1>
-                </div>
-                <div class="modal-body">
-                    Are you sure you wish to delete this video? This operation cannot be undone.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" onclick="deleteVideo()">Confirm</button>
+
+    <!-- Title & meta -->
+    <div class="mt-3">
+        <h3 class="d-flex align-items-center gap-2 flex-wrap">
+            {% if info.in_progress %}
+            <span
+                class="status-dot recording"
+                id="liveIndicator"
+                title="Recording in progress"
+            ></span>
+            {% endif %} {{ info.title }}
+        </h3>
+
+        <div class="d-flex flex-wrap align-items-center gap-3 text-muted mb-3">
+            <span>
+                <a
+                    class="link-secondary text-decoration-none"
+                    href="/channels/{{ info.channel }}"
+                >
+                    <i class="bi bi-person"></i> {{ info.channel }}
+                </a>
+            </span>
+            <span class="d-flex align-items-center gap-1">
+                {% set platform = info.platform %} {% set size = 16 %} {%
+                include 'platform_icon.html' %} {{ info.platform }}
+            </span>
+            <span>
+                <i class="bi bi-calendar3"></i>
+                {{ formattime(info.timestamp) }}
+            </span>
+            {% if info.file_size_formatted %}
+            <span>
+                <i class="bi bi-hdd"></i> {{ info.file_size_formatted }}
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Action buttons -->
+        <div class="d-flex flex-wrap gap-2 mb-4">
+            <button class="btn btn-primary" onclick="downloadVideo()">
+                <i class="bi bi-download"></i> Download
+            </button>
+            <a
+                href="{{ info.path }}"
+                target="_blank"
+                class="btn btn-outline-secondary"
+            >
+                <i class="bi bi-box-arrow-up-right"></i> Open in new tab
+            </a>
+            <button class="btn btn-outline-secondary" onclick="copyLink()">
+                <i class="bi bi-link-45deg"></i> Copy link
+            </button>
+            {% if info.original_url %}
+            <a
+                href="{{ info.original_url }}"
+                target="_blank"
+                class="btn btn-outline-secondary"
+            >
+                <i class="bi bi-globe"></i> Original stream
+            </a>
+            {% endif %}
+            <button
+                type="button"
+                class="btn btn-danger"
+                data-bs-toggle="modal"
+                data-bs-target="#deleteVideoModal"
+            >
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+
+        <!-- Keyboard shortcuts -->
+        <div class="card bg-body-secondary mb-3">
+            <div class="card-body py-2">
+                <h6 class="mb-2">
+                    <i class="bi bi-keyboard"></i> Keyboard Shortcuts
+                </h6>
+                <div
+                    class="row row-cols-2 row-cols-md-3 g-1"
+                    style="font-size: 0.82rem"
+                >
+                    <div class="col">
+                        <kbd>Space</kbd>/<kbd>K</kbd> Play/Pause
+                    </div>
+                    <div class="col"><kbd>F</kbd> Fullscreen</div>
+                    <div class="col"><kbd>M</kbd> Mute</div>
+                    <div class="col"><kbd>←</kbd>/<kbd>→</kbd> ±10s</div>
+                    <div class="col"><kbd>⇧←</kbd>/<kbd>⇧→</kbd> ±30s</div>
+                    <div class="col"><kbd>↑</kbd>/<kbd>↓</kbd> Volume</div>
                 </div>
             </div>
         </div>
     </div>
+</div>
+
+<!-- Delete modal -->
+<div
+    class="modal fade"
+    id="deleteVideoModal"
+    tabindex="-1"
+    aria-labelledby="deleteVideoModalLabel"
+    aria-hidden="true"
+>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="deleteVideoModalLabel">
+                    <i class="bi bi-trash"></i> Delete video
+                </h1>
+            </div>
+            <div class="modal-body">
+                <p>Delete <strong>{{ info.title }}</strong>?</p>
+                <p class="text-danger mb-0">This cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-danger"
+                    onclick="deleteVideo()"
+                >
+                    <i class="bi bi-trash"></i> Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

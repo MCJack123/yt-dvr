@@ -1,0 +1,31 @@
+{% extends "base.html" %} {% block title %}Search: {{ query }}{% endblock %} {%
+block content %}
+<div class="container text-left" style="margin-top: 20px">
+    <div class="row align-items-center mb-3">
+        <div class="col">
+            <h3>
+                <i class="bi bi-search"></i>
+                Search results for "{{ query }}"
+            </h3>
+            <p class="text-muted">
+                {{ results | length }} result{{ 's' if results | length != 1
+                else '' }} found
+            </p>
+        </div>
+    </div>
+
+    {% if results | length == 0 %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-search" style="font-size: 3rem"></i>
+        <p class="mt-2">No videos match your search.</p>
+        <p class="text-muted">Try different keywords or check the spelling.</p>
+    </div>
+    {% else %}
+    <div
+        class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 g-md-3"
+    >
+        {% for video in results %} {% include 'video_tile.html' %} {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

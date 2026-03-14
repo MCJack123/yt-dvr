@@ -1,12 +1,474 @@
-{% extends "base.html" %}
-{% block title %}Videos{% endblock %}
-{% block content %}
-    <div class="container text-left" style="margin-top: 20px">
-        <div class="row row-cols-auto"><h3>Videos</h3></div>
-        <div class="row row-cols-1 row-cols-md-4 g-4 g-md-3">
-            {% for video in videos %}
-                {% include 'video_tile.html' %}
-            {% endfor %}
+{% extends "base.html" %} {% block title %}Videos{% endblock %} {% block content
+%}
+<div class="container text-left" style="margin-top: 20px">
+    <div class="row align-items-center mb-3">
+        <div class="col-auto">
+            <h3><i class="bi bi-camera-video"></i> Videos</h3>
+        </div>
+        <div class="col-auto ms-auto d-flex gap-2">
+            <button
+                class="btn btn-sm btn-outline-secondary"
+                id="selectModeBtn"
+                onclick="toggleSelectMode()"
+            >
+                <i class="bi bi-check2-square"></i> Select
+            </button>
+            <div class="dropdown">
+                <button
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                >
+                    <i class="bi bi-sort-down"></i> Sort
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a
+                            class="dropdown-item sort-option active"
+                            href="#"
+                            data-sort="date-desc"
+                            onclick="sortVideos(this, 'date-desc')"
+                        >
+                            <i class="bi bi-sort-numeric-down-alt"></i> Newest
+                            first</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            class="dropdown-item sort-option"
+                            href="#"
+                            data-sort="date-asc"
+                            onclick="sortVideos(this, 'date-asc')"
+                        >
+                            <i class="bi bi-sort-numeric-down"></i> Oldest
+                            first</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            class="dropdown-item sort-option"
+                            href="#"
+                            data-sort="name-asc"
+                            onclick="sortVideos(this, 'name-asc')"
+                        >
+                            <i class="bi bi-sort-alpha-down"></i> Name A-Z</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            class="dropdown-item sort-option"
+                            href="#"
+                            data-sort="name-desc"
+                            onclick="sortVideos(this, 'name-desc')"
+                        >
+                            <i class="bi bi-sort-alpha-down-alt"></i> Name
+                            Z-A</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            class="dropdown-item sort-option"
+                            href="#"
+                            data-sort="channel"
+                            onclick="sortVideos(this, 'channel')"
+                        >
+                            <i class="bi bi-person"></i> By channel</a
+                        >
+                    </li>
+                </ul>
+            </div>
+            <div class="dropdown">
+                <button
+                    class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                >
+                    <i class="bi bi-funnel"></i> Filter
+                </button>
+                <ul class="dropdown-menu" id="filterMenu">
+                    <li>
+                        <a
+                            class="dropdown-item filter-option active"
+                            href="#"
+                            onclick="filterVideos(this, 'all')"
+                            >All</a
+                        >
+                    </li>
+                    <li>
+                        <a
+                            class="dropdown-item filter-option"
+                            href="#"
+                            onclick="filterVideos(this, 'recording')"
+                        >
+                            <span class="status-dot recording me-1"></span>
+                            Recording</a
+                        >
+                    </li>
+                    <li><hr class="dropdown-divider" /></li>
+                    {% for ch_name in channel_names %}
+                    <li>
+                        <a
+                            class="dropdown-item filter-option"
+                            href="#"
+                            onclick="filterVideos(this, '{{ ch_name }}')"
+                            >{{ ch_name }}</a
+                        >
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
         </div>
     </div>
+
+    {% if videos | length == 0 %}
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-inbox" style="font-size: 3rem"></i>
+        <p class="mt-2">No videos recorded yet.</p>
+        <a href="/channels" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add a channel
+        </a>
+    </div>
+    {% else %}
+    <div class="mb-2 text-muted">
+        <small id="videoCount"
+            >{{ videos | length }} video{{ 's' if videos | length != 1 else ''
+            }}</small
+        >
+    </div>
+
+    <nav aria-label="Video pagination" id="paginationTop" class="mb-3">
+        <ul
+            class="pagination pagination-sm justify-content-center"
+            id="paginationList"
+        ></ul>
+    </nav>
+
+    <div
+        class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 g-md-3"
+        id="videoGrid"
+    >
+        {% for video in videos %} {% include 'video_tile.html' %} {% endfor %}
+    </div>
+
+    <nav aria-label="Video pagination" class="mt-3">
+        <ul
+            class="pagination pagination-sm justify-content-center"
+            id="paginationListBottom"
+        ></ul>
+    </nav>
+    {% endif %}
+</div>
+
+<div
+    class="bulk-bar hidden bg-body-tertiary border-top shadow-lg p-3"
+    id="bulkBar"
+>
+    <div class="container d-flex align-items-center justify-content-between">
+        <span id="bulkCount">0 selected</span>
+        <div class="d-flex gap-2">
+            <button
+                class="btn btn-sm btn-outline-secondary"
+                onclick="selectAllVideos()"
+            >
+                <i class="bi bi-check2-all"></i> Select all
+            </button>
+            <button
+                class="btn btn-sm btn-outline-secondary"
+                onclick="deselectAllVideos()"
+            >
+                <i class="bi bi-x-lg"></i> Deselect all
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="bulkDelete()">
+                <i class="bi bi-trash"></i> Delete selected
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="bulkDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete selected videos</h5>
+                <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                ></button>
+            </div>
+            <div class="modal-body">
+                <p>
+                    Are you sure you want to delete
+                    <strong id="bulkDeleteCount">0</strong> videos? This cannot
+                    be undone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    data-bs-dismiss="modal"
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="btn btn-danger"
+                    onclick="confirmBulkDelete()"
+                >
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+    var selectMode = false;
+    var selectedVideos = [];
+    var ITEMS_PER_PAGE = 12;
+    var currentPage = 1;
+    var allCards = [];
+
+    document.addEventListener("DOMContentLoaded", function () {
+        allCards = Array.from(document.querySelectorAll("#videoGrid > .col"));
+        paginate();
+    });
+
+    function paginate() {
+        var visible = allCards.filter(function (c) {
+            return c.style.display !== "none";
+        });
+        var totalPages = Math.ceil(visible.length / ITEMS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+
+        visible.forEach(function (card, i) {
+            var page = Math.floor(i / ITEMS_PER_PAGE) + 1;
+            card.classList.toggle("d-none", page !== currentPage);
+        });
+
+        renderPagination("paginationList", totalPages);
+        renderPagination("paginationListBottom", totalPages);
+
+        var countEl = document.getElementById("videoCount");
+        if (countEl)
+            countEl.textContent =
+                visible.length + " video" + (visible.length !== 1 ? "s" : "");
+    }
+
+    function renderPagination(containerId, totalPages) {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = "";
+        if (totalPages <= 1) return;
+
+        var prevLi = document.createElement("li");
+        prevLi.className = "page-item" + (currentPage === 1 ? " disabled" : "");
+        prevLi.innerHTML = '<a class="page-link" href="#">&laquo;</a>';
+        prevLi.onclick = function (e) {
+            e.preventDefault();
+            if (currentPage > 1) {
+                currentPage--;
+                paginate();
+            }
+        };
+        container.appendChild(prevLi);
+
+        for (var p = 1; p <= totalPages; p++) {
+            (function (page) {
+                var li = document.createElement("li");
+                li.className =
+                    "page-item" + (page === currentPage ? " active" : "");
+                li.innerHTML = '<a class="page-link" href="#">' + page + "</a>";
+                li.onclick = function (e) {
+                    e.preventDefault();
+                    currentPage = page;
+                    paginate();
+                };
+                container.appendChild(li);
+            })(p);
+        }
+
+        var nextLi = document.createElement("li");
+        nextLi.className =
+            "page-item" + (currentPage === totalPages ? " disabled" : "");
+        nextLi.innerHTML = '<a class="page-link" href="#">&raquo;</a>';
+        nextLi.onclick = function (e) {
+            e.preventDefault();
+            if (currentPage < totalPages) {
+                currentPage++;
+                paginate();
+            }
+        };
+        container.appendChild(nextLi);
+    }
+
+    function sortVideos(el, mode) {
+        document.querySelectorAll(".sort-option").forEach(function (a) {
+            a.classList.remove("active");
+        });
+        el.classList.add("active");
+
+        allCards.sort(function (a, b) {
+            var aTs = parseInt(
+                a.querySelector("[data-video-timestamp]").dataset
+                    .videoTimestamp,
+            );
+            var bTs = parseInt(
+                b.querySelector("[data-video-timestamp]").dataset
+                    .videoTimestamp,
+            );
+            var aTitle = a
+                .querySelector(".card-title a")
+                .textContent.trim()
+                .toLowerCase();
+            var bTitle = b
+                .querySelector(".card-title a")
+                .textContent.trim()
+                .toLowerCase();
+            var aCh = a
+                .querySelector("[data-video-channel]")
+                .dataset.videoChannel.toLowerCase();
+            var bCh = b
+                .querySelector("[data-video-channel]")
+                .dataset.videoChannel.toLowerCase();
+
+            switch (mode) {
+                case "date-desc":
+                    return bTs - aTs;
+                case "date-asc":
+                    return aTs - bTs;
+                case "name-asc":
+                    return aTitle.localeCompare(bTitle);
+                case "name-desc":
+                    return bTitle.localeCompare(aTitle);
+                case "channel":
+                    return aCh.localeCompare(bCh) || bTs - aTs;
+            }
+            return 0;
+        });
+
+        var grid = document.getElementById("videoGrid");
+        allCards.forEach(function (card) {
+            grid.appendChild(card);
+        });
+        currentPage = 1;
+        paginate();
+    }
+
+    function filterVideos(el, mode) {
+        document.querySelectorAll(".filter-option").forEach(function (a) {
+            a.classList.remove("active");
+        });
+        el.classList.add("active");
+
+        allCards.forEach(function (card) {
+            var channel = card.querySelector("[data-video-channel]").dataset
+                .videoChannel;
+            var isRecording = card.querySelector(".recording-badge") !== null;
+
+            if (mode === "all") {
+                card.style.display = "";
+            } else if (mode === "recording") {
+                card.style.display = isRecording ? "" : "none";
+            } else {
+                card.style.display = channel === mode ? "" : "none";
+            }
+        });
+
+        currentPage = 1;
+        paginate();
+    }
+
+    function toggleSelectMode() {
+        selectMode = !selectMode;
+        var btn = document.getElementById("selectModeBtn");
+        btn.classList.toggle("btn-outline-secondary", !selectMode);
+        btn.classList.toggle("btn-primary", selectMode);
+
+        document.querySelectorAll(".select-check").forEach(function (cb) {
+            cb.classList.toggle("d-none", !selectMode);
+            if (!selectMode) cb.checked = false;
+        });
+
+        selectedVideos = [];
+        updateBulkBar();
+    }
+
+    function onVideoSelect(cb) {
+        var key = cb.dataset.channel + "/" + cb.dataset.timestamp;
+        var card = cb.closest(".card");
+        if (cb.checked) {
+            selectedVideos.push({
+                channel: cb.dataset.channel,
+                timestamp: cb.dataset.timestamp,
+            });
+            card.classList.add("selected");
+        } else {
+            selectedVideos = selectedVideos.filter(function (v) {
+                return !(
+                    v.channel === cb.dataset.channel &&
+                    v.timestamp === cb.dataset.timestamp
+                );
+            });
+            card.classList.remove("selected");
+        }
+        updateBulkBar();
+    }
+
+    function selectAllVideos() {
+        selectedVideos = [];
+        document.querySelectorAll(".select-check").forEach(function (cb) {
+            if (
+                !cb.closest(".col").classList.contains("d-none") &&
+                cb.closest(".col").style.display !== "none"
+            ) {
+                cb.checked = true;
+                cb.closest(".card").classList.add("selected");
+                selectedVideos.push({
+                    channel: cb.dataset.channel,
+                    timestamp: cb.dataset.timestamp,
+                });
+            }
+        });
+        updateBulkBar();
+    }
+
+    function deselectAllVideos() {
+        selectedVideos = [];
+        document.querySelectorAll(".select-check").forEach(function (cb) {
+            cb.checked = false;
+            cb.closest(".card").classList.remove("selected");
+        });
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        var bar = document.getElementById("bulkBar");
+        var count = document.getElementById("bulkCount");
+        if (selectedVideos.length > 0) {
+            bar.classList.remove("hidden");
+            count.textContent = selectedVideos.length + " selected";
+        } else {
+            bar.classList.add("hidden");
+        }
+    }
+
+    function bulkDelete() {
+        document.getElementById("bulkDeleteCount").textContent =
+            selectedVideos.length;
+        new bootstrap.Modal(document.getElementById("bulkDeleteModal")).show();
+    }
+
+    function confirmBulkDelete() {
+        var promises = selectedVideos.map(function (v) {
+            return fetch("/api/channels/" + v.channel + "/" + v.timestamp, {
+                method: "DELETE",
+            });
+        });
+        Promise.all(promises).then(function () {
+            location.reload();
+        });
+    }
+</script>
 {% endblock %}

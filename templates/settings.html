@@ -3,112 +3,196 @@
 {% block content %}
     <script>
         function updateSettings() {
+            var defaultCount = parseInt(document.getElementById("default_count").value);
+            var defaultSize = parseInt(document.getElementById("default_size").value);
+            var defaultTime = parseInt(document.getElementById("default_time").value);
+            var globalCount = parseInt(document.getElementById("global_count").value);
+            var globalSize = parseInt(document.getElementById("global_size").value);
+            var globalTime = parseInt(document.getElementById("global_time").value);
+
+            var payload = {
+                saveDir: document.getElementById("saveDir").value,
+                serverPort: parseInt(document.getElementById("serverPort").value),
+                logLevel: document.getElementById("logLevel").value,
+                pollInterval: parseInt(document.getElementById("pollInterval").value),
+                remuxRecordings: document.getElementById("remuxRecordings").checked,
+                remuxFormat: document.getElementById("remuxFormat").value,
+                defaultRetention: {
+                    count: defaultCount > 0 ? defaultCount : null,
+                    size: defaultSize > 0 ? defaultSize : null,
+                    time: defaultTime > 0 ? defaultTime : null
+                },
+                globalRetention: {
+                    count: globalCount > 0 ? globalCount : null,
+                    size: globalSize > 0 ? globalSize : null,
+                    time: globalTime > 0 ? globalTime : null
+                }
+            };
+
             fetch("/api/settings", {
                 method: "PUT",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    saveDir: document.getElementById("saveDir").value,
-                    serverPort: parseInt(document.getElementById("serverPort").value),
-                    logLevel: document.getElementById("logLevel").value,
-                    pollInterval: parseInt(document.getElementById("pollInterval").value),
-                    remuxRecordings: document.getElementById("remuxRecordings").checked,
-                    remuxFormat: document.getElementById("remuxFormat").value,
-                    defaultRetention: {
-                        count: parseInt(document.getElementById("default_count").value) > 0 ? parseInt(document.getElementById("default_count").value) : null,
-                        size: parseInt(document.getElementById("default_size").value) > 0 ? parseInt(document.getElementById("default_size").value) : null,
-                        time: parseInt(document.getElementById("default_time").value) > 0 ? parseInt(document.getElementById("default_time").value) : null
-                    },
-                    globalRetention: {
-                        count: parseInt(document.getElementById("global_count").value) > 0 ? parseInt(document.getElementById("global_count").value) : null,
-                        size: parseInt(document.getElementById("global_size").value) > 0 ? parseInt(document.getElementById("global_size").value) : null,
-                        time: parseInt(document.getElementById("global_time").value) > 0 ? parseInt(document.getElementById("global_time").value) : null
-                    },
-                })
-            }).then(res => {
-                if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
+                body: JSON.stringify(payload)
+            }).then(function(res) {
+                if (res.ok) {
+                    bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
+                } else {
+                    return res.json().then(function(body) {
+                        alert("Failed to update settings: " + body.error);
+                    });
+                }
             });
+        }
+
+        function resetSettings() {
+            if (confirm('Are you sure you want to reset all settings to defaults?')) {
+                fetch('/api/settings/reset', { method: 'POST' })
+                    .then(function(res) {
+                        if (res.ok) location.reload();
+                        else alert('Failed to reset settings');
+                    });
+            }
         }
     </script>
     <div class="container text-left" style="margin-top: 20px">
-        <div class="row row-cols-auto mb-3">
-            <h3>Settings</h3>
+        <div class="row align-items-center mb-3">
+            <div class="col-auto">
+                <h3><i class="bi bi-gear"></i> Settings</h3>
+            </div>
         </div>
         <form class="row">
-            <div class="mb-3">
-                <label for="saveDir" class="form-label">Save directory</label>
-                <input type="text" class="form-control" id="saveDir" value="{{ settings.saveDir }}">
-            </div>
-            <div class="mb-3">
-                <label for="serverPort" class="form-label">Server port</label>
-                <input type="number" class="form-control" id="serverPort" value="{{ settings.serverPort }}">
-            </div>
-            <div class="mb-3">
-                <label for="logLevel" class="form-label">Log level</label>
-                <select id="logLevel" class="form-select" aria-label="Log level">
-                    <option value="DEBUG" {{ "selected" if settings.logLevel == "DEBUG" else "" }}>DEBUG</option>
-                    <option value="INFO" {{ "selected" if settings.logLevel == "INFO" else "" }}>INFO</option>
-                    <option value="WARNING" {{ "selected" if settings.logLevel == "WARNING" else "" }}>WARNING</option>
-                    <option value="ERROR" {{ "selected" if settings.logLevel == "ERROR" else "" }}>ERROR</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="pollInterval" class="form-label">Poll interval (seconds)</label>
-                <input type="number" class="form-control" id="pollInterval" value="{{ settings.pollInterval }}">
-            </div>
-            <label for="remuxFormat" class="form-label">Remux recordings?</label>
-            <div class="input-group mb-3">
-                <div class="input-group-text">
-                     <input type="checkbox" class="form-check-input" id="remuxRecordings" checked="{{ 'true' if settings.remuxRecordings else 'false' }}">
-                </div>
-                <input type="text" placeholder="Remux format" class="form-control" id="remuxFormat" value="{{ settings.remuxFormat }}">
-            </div>
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Default channel retention policy</h5>
-                    <div class="row">
-                        <div class="col">
-                            <label for="count" class="form-label">Count</label>
-                            <input type="number" class="form-control" id="default_count" value="{{ settings.defaultRetention.count }}">
+            <div class="col-lg-8">
+                <div class="card bg-body-secondary mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-folder"></i> General</h5>
+                        <div class="mb-3">
+                            <label for="saveDir" class="form-label">Save directory</label>
+                            <input type="text" class="form-control" id="saveDir"
+                                   value="{{ settings['saveDir'] }}">
+                            <div class="form-text">Directory where recordings are stored.</div>
                         </div>
-                        <div class="col">
-                            <label for="size" class="form-label">Size (megabytes)</label>
-                            <input type="number" class="form-control" id="default_size" value="{{ settings.defaultRetention.size }}">
+                        <div class="mb-3">
+                            <label for="serverPort" class="form-label">Server port</label>
+                            <input type="number" class="form-control" id="serverPort"
+                                   value="{{ settings['serverPort'] }}">
                         </div>
-                        <div class="col">
-                            <label for="time" class="form-label">Time (days)</label>
-                            <input type="number" class="form-control" id="default_time" value="{{ settings.defaultRetention.time }}">
+                        <div class="mb-3">
+                            <label for="logLevel" class="form-label">Log level</label>
+                            <select id="logLevel" class="form-select">
+                                {% for level in log_levels %}
+                                <option value="{{ level }}"{% if level == current_log_level %} selected{% endif %}>
+                                    {{ level }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="pollInterval" class="form-label">
+                                Poll interval (seconds)
+                            </label>
+                            <input type="number" class="form-control" id="pollInterval"
+                                   value="{{ settings['pollInterval'] }}" min="10">
+                            <div class="form-text">How often to check channels for live streams.</div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Global retention policy</h5>
-                    <div class="row">
-                        <div class="col">
-                            <label for="count" class="form-label">Count</label>
-                            <input type="number" class="form-control" id="global_count" value="{{ settings.globalRetention.count }}">
+
+                <div class="card bg-body-secondary mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-file-earmark-play"></i> Recording</h5>
+                        <label for="remuxFormat" class="form-label">Remux recordings?</label>
+                        <div class="input-group mb-3">
+                            <div class="input-group-text">
+                                <input type="checkbox" class="form-check-input" id="remuxRecordings"
+                                       {% if settings['remuxRecordings'] %}checked{% endif %}>
+                            </div>
+                            <input type="text" placeholder="Remux format" class="form-control"
+                                   id="remuxFormat" value="{{ settings['remuxFormat'] }}">
                         </div>
-                        <div class="col">
-                            <label for="size" class="form-label">Size (megabytes)</label>
-                            <input type="number" class="form-control" id="global_size" value="{{ settings.globalRetention.size }}">
-                        </div>
-                        <div class="col">
-                            <label for="time" class="form-label">Time (days)</label>
-                            <input type="number" class="form-control" id="global_time" value="{{ settings.globalRetention.time }}">
+                        <div class="form-text">
+                            When enabled, recordings will be remuxed to the specified format (e.g., mp4) after completion.
                         </div>
                     </div>
                 </div>
+
+                <div class="card bg-body-secondary mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-clock-history"></i> Default Channel Retention Policy
+                        </h5>
+                        <p class="text-muted small">Applied to channels without custom retention settings.</p>
+                        <div class="row">
+                            <div class="col">
+                                <label for="default_count" class="form-label">Count</label>
+                                <input type="number" class="form-control" id="default_count"
+                                       value="{{ settings['defaultRetention']['count'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                            <div class="col">
+                                <label for="default_size" class="form-label">Size (MB)</label>
+                                <input type="number" class="form-control" id="default_size"
+                                       value="{{ settings['defaultRetention']['size'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                            <div class="col">
+                                <label for="default_time" class="form-label">Time (days)</label>
+                                <input type="number" class="form-control" id="default_time"
+                                       value="{{ settings['defaultRetention']['time'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card bg-body-secondary mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-globe"></i> Global Retention Policy
+                        </h5>
+                        <p class="text-muted small">Applied across all channels combined.</p>
+                        <div class="row">
+                            <div class="col">
+                                <label for="global_count" class="form-label">Count</label>
+                                <input type="number" class="form-control" id="global_count"
+                                       value="{{ settings['globalRetention']['count'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                            <div class="col">
+                                <label for="global_size" class="form-label">Size (MB)</label>
+                                <input type="number" class="form-control" id="global_size"
+                                       value="{{ settings['globalRetention']['size'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                            <div class="col">
+                                <label for="global_time" class="form-label">Time (days)</label>
+                                <input type="number" class="form-control" id="global_time"
+                                       value="{{ settings['globalRetention']['time'] or '' }}"
+                                       placeholder="No limit">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex gap-2 mb-4">
+                    <button type="button" class="btn btn-primary" onclick="updateSettings()">
+                        <i class="bi bi-check-lg"></i> Save Settings
+                    </button>
+                    <button type="button" class="btn btn-outline-warning" onclick="resetSettings()">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset to Defaults
+                    </button>
+                </div>
             </div>
-            <button type="button" class="btn btn-primary" onclick="updateSettings()">Update</button>
         </form>
     </div>
+
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div class="toast" id="updatedToast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast" id="updatedToast" role="alert"
+             aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
-                <img src="..." class="rounded me-2" alt="...">
-                <strong class="me-auto">Updated settings</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                <i class="bi bi-check-circle-fill text-success me-2"></i>
+                <strong class="me-auto">Settings updated</strong>
+                <button type="button" class="btn-close"
+                        data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body">
                 The settings have been updated successfully.
