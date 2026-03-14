@@ -1,0 +1,315 @@
+{% extends "base.html" %} {% block title %}Dashboard{% endblock %} {% block
+content %}
+<div class="container" style="margin-top: 20px">
+    <h3 class="mb-4"><i class="bi bi-speedometer2"></i> Dashboard</h3>
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3 mb-4">
+        <div class="col">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-collection-play fs-1 text-primary"></i>
+                    <h2 class="mt-2">{{ stats.total_channels }}</h2>
+                    <p class="text-muted mb-0">Channels</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-camera-video fs-1 text-success"></i>
+                    <h2 class="mt-2">{{ stats.total_videos }}</h2>
+                    <p class="text-muted mb-0">Total Videos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-record-fill fs-1 text-danger"></i>
+                    <h2 class="mt-2">{{ stats.active_recordings }}</h2>
+                    <p class="text-muted mb-0">Active Recordings</p>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-hdd fs-1 text-warning"></i>
+                    <h2 class="mt-2">{{ stats.total_size_formatted }}</h2>
+                    <p class="text-muted mb-0">Disk Usage</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-body-secondary mb-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-hdd"></i> Storage</h5>
+            <div class="row align-items-center">
+                <div class="col">
+                    <div class="progress disk-usage-bar">
+                        <div
+                            class="progress-bar {{ 'bg-danger' if stats.disk_percent > 90 else ('bg-warning' if stats.disk_percent > 70 else 'bg-success') }}"
+                            role="progressbar"
+                            style="width: {{ stats.disk_percent }}%"
+                            aria-valuenow="{{ stats.disk_percent }}"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                        ></div>
+                    </div>
+                </div>
+                <div class="col-auto text-muted">
+                    {{ stats.disk_used_formatted }} / {{
+                    stats.disk_total_formatted }} ({{ stats.disk_percent }}%)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <span class="status-dot recording me-1"></span>
+                        Active Recordings
+                    </h5>
+                    {% if active_recordings | length == 0 %}
+                    <p class="text-muted">No active recordings.</p>
+                    {% else %}
+                    <div class="list-group list-group-flush">
+                        {% for rec in active_recordings %}
+                        <a
+                            href="/channels/{{ rec.channel }}/{{ rec.timestamp }}"
+                            class="list-group-item list-group-item-action bg-transparent"
+                        >
+                            <div
+                                class="d-flex justify-content-between align-items-center"
+                            >
+                                <div>
+                                    <strong>{{ rec.title }}</strong>
+                                    <br />
+                                    <small class="text-muted"
+                                        >{{ rec.channel }} &mdash; {{
+                                        rec.platform }}</small
+                                    >
+                                </div>
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-record-fill"></i> LIVE
+                                </span>
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card bg-body-secondary h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-clock-history"></i> Recent Videos
+                    </h5>
+                    {% if recent_videos | length == 0 %}
+                    <p class="text-muted">No videos yet.</p>
+                    {% else %}
+                    <div class="list-group list-group-flush">
+                        {% for vid in recent_videos %}
+                        <a
+                            href="/channels/{{ vid.channel }}/{{ vid.timestamp }}"
+                            class="list-group-item list-group-item-action bg-transparent"
+                        >
+                            <div
+                                class="d-flex justify-content-between align-items-center"
+                            >
+                                <div>
+                                    <strong
+                                        class="text-truncate d-block"
+                                        style="max-width: 300px"
+                                    >
+                                        {{ vid.title }}
+                                    </strong>
+                                    <small class="text-muted">
+                                        {{ vid.channel }} &mdash; {{
+                                        formattime(vid.timestamp) }}
+                                    </small>
+                                </div>
+                                {% if vid.file_size_formatted %}
+                                <small class="text-muted"
+                                    >{{ vid.file_size_formatted }}</small
+                                >
+                                {% endif %}
+                            </div>
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-body-secondary mb-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                <i class="bi bi-bar-chart"></i> Per-Channel Statistics
+            </h5>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Channel</th>
+                            <th>Platform</th>
+                            <th>Videos</th>
+                            <th>Size</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cs in channel_stats %}
+                        <tr>
+                            <td>
+                                <a
+                                    href="/channels/{{ cs.name }}"
+                                    class="text-decoration-none"
+                                >
+                                    {{ cs.name }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if cs.platform %}
+                                <span class="d-flex align-items-center gap-1">
+                                    {% set platform = cs.platform %} {% set size
+                                    = 16 %} {% include 'platform_icon.html' %}
+                                    {{ cs.platform }}
+                                </span>
+                                {% else %} — {% endif %}
+                            </td>
+                            <td>{{ cs.video_count }}</td>
+                            <td>{{ cs.total_size_formatted }}</td>
+                            <td>
+                                {% if cs.is_recording %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-record-fill"></i> Recording
+                                </span>
+                                {% else %}
+                                <span class="badge bg-secondary">Idle</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-body-secondary mb-4">
+        <div class="card-body">
+            <h5 class="card-title">
+                <i class="bi bi-lightning"></i> Quick Actions
+            </h5>
+            <div class="d-flex flex-wrap gap-2">
+                <button
+                    class="btn btn-outline-primary"
+                    onclick="checkAllChannels()"
+                >
+                    <i class="bi bi-arrow-repeat"></i> Check all channels now
+                </button>
+                <button
+                    class="btn btn-outline-success"
+                    onclick="exportConfig()"
+                >
+                    <i class="bi bi-download"></i> Export configuration
+                </button>
+                <label class="btn btn-outline-info mb-0">
+                    <i class="bi bi-upload"></i> Import configuration
+                    <input
+                        type="file"
+                        class="d-none"
+                        accept=".json"
+                        onchange="importConfig(this)"
+                    />
+                </label>
+                <button
+                    class="btn btn-outline-warning"
+                    onclick="forceRetention()"
+                >
+                    <i class="bi bi-scissors"></i> Run retention cleanup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+    function checkAllChannels() {
+        fetch("/api/check-now", { method: "POST" }).then(function (res) {
+            if (res.ok) {
+                showNotification("Channel check triggered!", "success");
+            } else {
+                showNotification("Failed to trigger check", "danger");
+            }
+        });
+    }
+
+    function exportConfig() {
+        fetch("/api/export-config")
+            .then(function (res) {
+                return res.blob();
+            })
+            .then(function (blob) {
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement("a");
+                a.href = url;
+                a.download = "yt-dvr-config.json";
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+    }
+
+    function importConfig(input) {
+        var file = input.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            try {
+                var data = JSON.parse(e.target.result);
+                fetch("/api/import-config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data),
+                }).then(function (res) {
+                    if (res.ok) {
+                        showNotification(
+                            "Configuration imported! Reloading...",
+                            "success",
+                        );
+                        setTimeout(function () {
+                            location.reload();
+                        }, 1500);
+                    } else {
+                        return res.json().then(function (b) {
+                            alert("Import failed: " + b.error);
+                        });
+                    }
+                });
+            } catch (err) {
+                alert("Invalid JSON file");
+            }
+        };
+        reader.readAsText(file);
+        input.value = "";
+    }
+
+    function forceRetention() {
+        fetch("/api/run-retention", { method: "POST" }).then(function (res) {
+            if (res.ok)
+                showNotification("Retention cleanup triggered!", "success");
+            else showNotification("Failed to run retention", "danger");
+        });
+    }
+</script>
+{% endblock %}

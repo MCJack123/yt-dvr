@@ -9,7 +9,10 @@ dependencies = [
     "yt_dlp",
     "quart",
     "pathvalidate",
-    "typed-ffmpeg"
+    "typed-ffmpeg",
+    "pytchat>=0.5.5",
+    "python-dateutil>=2.9.0.post0",
+    "kickpython>=0.1.5",
 ]
 
 [project.optional-dependencies]
