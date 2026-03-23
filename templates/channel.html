@@ -11,6 +11,13 @@
         }
     </style>
     <script>
+        function getYtdlParams() {
+            let v = document.getElementById("ytdlParams").value;
+            if (v === "") return null;
+            try {return JSON.parse(v);}
+            catch {return v;}
+        }
+
         function updateChannel() {
             if (document.getElementById("ytdlParams").value !== "") {
                 try {
@@ -37,7 +44,7 @@
                         size: parseInt(document.getElementById("size").value) > 0 ? parseInt(document.getElementById("size").value) : null,
                         time: parseInt(document.getElementById("time").value) > 0 ? parseInt(document.getElementById("time").value) : null
                     } : null,
-                    ytdlParams: document.getElementById("ytdlParams").value !== "" ? JSON.parse(document.getElementById("ytdlParams").value) : null
+                    ytdlParams: getYtdlParams()
                 })
             }).then(res => {
                 if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
@@ -102,7 +109,7 @@
                                 </div>
                             </div>
                             <div class="mb-3">
-                                <label for="ytdlParams" class="form-label">yt-dl parameters (JSON - see <a href="https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py">yt-dlp converter</a>)</label>
+                                <label for="ytdlParams" class="form-label">yt-dl parameters (CLI flags or JSON object - see <a href="https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py">yt-dlp converter</a>)</label>
                                 <textarea id="ytdlParams" class="form-control">{{ ytdlParams }}</textarea>
                             </div>
                             <div class="row row-cols-auto justify-content-between">

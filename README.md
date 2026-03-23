@@ -32,6 +32,7 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `quality`: The yt-dlp quality format to record at (default `bestaudio+bestvideo`)
   - `retention`: An alternate retention configuration for this channel only - if set it overrides the defaults completely
   - `ytdlParams`: An object containing parameters to pass to yt-dlp, in API format (see https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py)
+    - In the web interface, this may also be regular flags which will be converted to API format on submit
 
 These settings can be configured through the web interface.
 
@@ -41,6 +42,8 @@ The video database is stored in a SQLite database stored at `$YTDVR_DB`, default
 Run `python ytdvr/server.py`.
 
 The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
+
+A Dockerfile is also provided for use in a Docker container.
 
 ## License
 yt-dvr is licensed under the GNU Affero General Public License v3.0. You are allowed to host, modify and redistribute this code at will, as long as source code is always provided, including by public server hosts.

@@ -1,3 +1,4 @@
+from copy import copy
 from typing import Optional, cast, Callable, Any
 from yt_dlp import YoutubeDL, utils
 import asyncio
@@ -271,7 +272,7 @@ class Channel:
         else: self.quality = None
 
     def _check_live(self, loop: asyncio.EventLoop, future: asyncio.Future):
-        dl = YoutubeDL(self.ytdlParams) # type: ignore
+        dl = YoutubeDL(copy(self.ytdlParams)) # type: ignore
         if not ("noprogress" in dl.params) and LOG.level > logging.DEBUG: dl.params["noprogress"] = True
         if not ("quiet" in dl.params) and LOG.level > logging.DEBUG: dl.params["quiet"] = True
         try:

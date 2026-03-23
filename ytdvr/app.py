@@ -1,11 +1,14 @@
 from quart import Quart, request, send_file, render_template
 from typing import Awaitable, Callable, Any
+from urllib.parse import quote
 import channel as channels
 import config
 import datetime
 import json
 import logging
 import os
+import yt_dlp
+import yt_dlp.options
 
 LOG = logging.getLogger("yt-dvr")
 
@@ -15,6 +18,36 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 def formattime(timestamp) -> str: return datetime.datetime.fromtimestamp(timestamp).strftime("%c")
 def formatdate(timestamp) -> str: return datetime.date.fromtimestamp(timestamp).strftime("%x")
+
+create_parser = yt_dlp.options.create_parser
+
+
+def parse_patched_options(opts):
+    patched_parser = create_parser()
+    patched_parser.defaults.update({
+        'ignoreerrors': False,
+        'retries': 0,
+        'fragment_retries': 0,
+        'extract_flat': False,
+        'concat_playlist': 'never',
+        'update_self': False,
+    })
+    yt_dlp.options.create_parser = lambda: patched_parser
+    try:
+        return yt_dlp.parse_options(opts)
+    finally:
+        yt_dlp.options.create_parser = create_parser
+
+default_opts = parse_patched_options([]).ydl_opts
+
+def cli_to_api(opts, cli_defaults=False):
+    opts = (yt_dlp.parse_options if cli_defaults else parse_patched_options)(opts).ydl_opts
+
+    diff = {k: v for k, v in opts.items() if default_opts[k] != v}
+    if 'postprocessors' in diff:
+        diff['postprocessors'] = [pp for pp in diff['postprocessors'] # type: ignore
+                                  if pp not in default_opts['postprocessors']] # type: ignore
+    return diff
 
 @app.route("/")
 async def home():
@@ -45,8 +78,15 @@ async def file_m3u8(channel, file):
     elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
     else: return (await render_template("404.html", message="The requested file does not exist."), 404)
-    if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:9.97667\n" + path + "\n"
-    else: return "#EXTM3U\n#EXT-X-TARGETDURATION:10\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:9.97667\n" + path + "\n#EXT-X-ENDLIST\n"
+    duration = "10"
+    if not path.endswith(".mp4"):
+        for video in channels.recordings:
+            if video.channel == channel and (video.filename == channel + "/" + path or video.filename + ".part" == channel + "/" + path):
+                if video.in_progress:
+                    duration = str(int(datetime.datetime.now().timestamp()) - video.timestamp)
+                break
+    if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:" + duration + "\n" + quote(path) + "\n"
+    else: return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:" + duration + "\n" + quote(path) + "\n#EXT-X-ENDLIST\n"
 
 @app.route("/settings")
 async def settings():
@@ -70,7 +110,7 @@ async def channel_(channel):
 async def video(channel, timestamp):
     for info in channels.recordings:
         if info.channel == channel and info.timestamp == timestamp:
-            return await render_template("video.html", info=info._dump(), formattime=formattime)
+            return await render_template("video.html", info=info._dump(), formattime=formattime, urlencode=quote)
     return (await render_template("404.html", message="The recording requested was not found."), 404)
 
 @app.route("/stop")
@@ -187,8 +227,9 @@ async def api_channel(channel):
             elif data["retention"] is not None: return ({"error": "'retention' not an object"}, 400)
             c.retention = config.Retention(data["retention"]) if data["retention"] is not None else None
         if "ytdlParams" in data:
-            if type(data["ytdlParams"]) != dict and data["ytdlParams"] is not None: return ({"error": "'ytdlParams' not an object"}, 400)
-            c.ytdlParams = data["ytdlParams"]
+            if type(data["ytdlParams"]) == dict: c.ytdlParams = data["ytdlParams"]
+            elif type(data["ytdlParams"]) == str: c.ytdlParams = cli_to_api(data["ytdlParams"], False)
+            elif data["ytdlParams"] is not None: return ({"error": "'ytdlParams' not an object or string"}, 400)
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return (c._dump(), 200)
     elif request.method == "DELETE":
