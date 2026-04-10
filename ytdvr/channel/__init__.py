@@ -173,7 +173,12 @@ class RecordingInfo:
         newname = self.filename.removesuffix(".ts") + "." + config.remuxFormat
         try:
             input = config.saveDir + "/" + self.filename
-            if not os.path.exists(input): input += ".part"
+            if not os.path.exists(input):
+                if os.path.exists(input + ".part"): input += ".part"
+                elif os.path.exists(input + ".mp4"): input += ".mp4"
+                else:
+                    LOG.error("Could not find file or partial stream at " + input + ", skipping remux")
+                    return
             (ffmpeg
                 .input(filename=input)
                 .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True})).run()

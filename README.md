@@ -6,6 +6,8 @@ Channels are automatically pinged at a specified frequency, and recorded if they
 A small web interface is served via Quart, for basic video playback and service configuration. An external media server is recommended if media organization is important - the interface is only meant for limited usage and is not optimized for multiple users, sorting, etc.
 
 ## Install
+Built executables can be found under Releases on the right.
+
 Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed.
 
 Install requirements from `requirements.txt`: `pip install -r requirements.txt`.
