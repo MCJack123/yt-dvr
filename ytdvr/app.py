@@ -7,12 +7,14 @@ import datetime
 import json
 import logging
 import os
+import sys
 import yt_dlp
 import yt_dlp.options
 
 LOG = logging.getLogger("yt-dvr")
 
-app = Quart("yt-dvr")
+if hasattr(sys, "_MEIPASS"): app = Quart("yt-dvr", template_folder=sys._MEIPASS + "/templates") # type: ignore
+else: app = Quart("yt-dvr")
 app.logger.setLevel(logging.DEBUG)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
@@ -148,6 +150,9 @@ async def api_settings():
         if "logLevel" in data:
             if type(data["logLevel"]) != str: return ({"error": "'logLevel' not a string"}, 400)
             config.config.logLevel = data["logLevel"]
+        if "ffmpegPath" in data:
+            if data["ffmpegPath"] is not None and type(data["ffmpegPath"]) != str: return ({"error": "'ffmpegPath' not a string"}, 400)
+            config.config.ffmpegPath = data["ffmpegPath"]
         if "defaultRetention" in data:
             if type(data["defaultRetention"]) != dict: return ({"error": "'defaultRetention' not an object"}, 400)
             if "count" in data["defaultRetention"] and data["defaultRetention"]["count"] is not None and type(data["defaultRetention"]["count"]) != int: return ({"error": "'defaultRetention.count' not an integer"}, 400)

@@ -16,6 +16,9 @@ from config import config, LOG, Retention
 
 LOG = logging.getLogger("yt-dvr")
 
+if hasattr(sys, "_MEIPASS"): FFMPEG_PATH = sys._MEIPASS + "/ffmpeg.exe" # type: ignore
+else: FFMPEG_PATH = "ffmpeg"
+
 def ctype_async_raise(target_tid, exception):
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(target_tid), ctypes.py_object(exception))
     # ref: http://docs.python.org/c-api/init.html#PyThreadState_SetAsyncExc
@@ -181,7 +184,7 @@ class RecordingInfo:
                     return
             (ffmpeg
                 .input(filename=input)
-                .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True})).run()
+                .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True})).run(cmd=config.ffmpegPath if config.ffmpegPath is not None else FFMPEG_PATH)
             try: os.remove(input)
             except: pass
             self.filename = newname
@@ -280,6 +283,10 @@ class Channel:
         dl = YoutubeDL(copy(self.ytdlParams)) # type: ignore
         if not ("noprogress" in dl.params) and LOG.level > logging.DEBUG: dl.params["noprogress"] = True
         if not ("quiet" in dl.params) and LOG.level > logging.DEBUG: dl.params["quiet"] = True
+        if hasattr(sys, "_MEIPASS"):
+            dl.params["ffmpeg_location"] = sys._MEIPASS + "/ffmpeg.exe" # type: ignore
+            dl.params["js_runtimes"] = {"deno": {"path": sys._MEIPASS + "/deno.exe"}} # type: ignore
+        elif config.ffmpegPath is not None: dl.params["ffmpeg_location"] = config.ffmpegPath
         try:
             info = dl.extract_info(self.url, False)
         except utils.DownloadError:

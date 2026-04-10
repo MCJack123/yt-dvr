@@ -2,3 +2,6 @@ files
 ytdvr_config.json
 ytdvr.db*
 cli_to_api.py
+*.spec
+build
+dist

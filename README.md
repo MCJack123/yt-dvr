@@ -8,7 +8,7 @@ A small web interface is served via Quart, for basic video playback and service 
 ## Install
 Built executables can be found under Releases on the right.
 
-Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed.
+Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed. Deno is required if recording YouTube streams.
 
 Install requirements from `requirements.txt`: `pip install -r requirements.txt`.
 
@@ -26,6 +26,7 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
 - `remuxRecordings`: Whether to remux recordings after finishing. (Recordings are saved as MPEG-TS for streaming.)
 - `remuxFormat`: If remuxing is enabled, the (FFmpeg) format to remux to.
 - `logLevel`: The logging level as defined by [Python `logging`](https://docs.python.org/3/library/logging.html#logging-levels) (string)
+- `ffmpegPath`: The path to an FFmpeg binary to use, or `null` to find one on the system.
 - `channels`: An object containing channel names and options to record, with the following channel options (optional unless otherwise specified):
   - `url`: The URL to record (required)
     - For YouTube channels, this should be in the format `https://www.youtube.com/@<channel>/live`
@@ -46,6 +47,13 @@ Run `python ytdvr/server.py`.
 The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
 
 A Dockerfile is also provided for use in a Docker container.
+
+### PyInstaller packaging
+Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
+
+```sh
+pyinstaller ytdvr/server.py -F --add-data templates:templates --collect-submodules ytdvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:.
+```
 
 ## License
 yt-dvr is licensed under the GNU Affero General Public License v3.0. You are allowed to host, modify and redistribute this code at will, as long as source code is always provided, including by public server hosts.
