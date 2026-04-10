@@ -1,7 +1,7 @@
 [project]
 name = "yt-dvr"
 description = "A service to automatically record livestreams from various platforms, backed by yt-dlp"
-version = "0.1"
+version = "0.2"
 authors = [{name = "JackMacWindows"}]
 readme = "README.md"
 license = "AGPL-3.0-or-later"

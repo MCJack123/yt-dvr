@@ -52,7 +52,7 @@ A Dockerfile is also provided for use in a Docker container.
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
 
 ```sh
-pyinstaller ytdvr/server.py -F --add-data templates:templates --collect-submodules ytdvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:.
+pyinstaller ytdvr/server.py -F --add-data templates:templates --collect-submodules ytdvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi
 ```
 
 ## License
