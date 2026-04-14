@@ -11,8 +11,7 @@ import os
 import pathvalidate
 import sys
 import threading
-sys.path.append("..")
-from config import config, LOG, Retention
+from yt_dvr.config import config, LOG, Retention
 
 LOG = logging.getLogger("yt-dvr")
 

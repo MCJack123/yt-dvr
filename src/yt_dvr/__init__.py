@@ -1,14 +1,15 @@
 from typing import Any
-from config import LOG, config
-import app
+from yt_dvr.config import LOG, config
+import yt_dvr.app as app
 import asyncio
-import channel as channels
+import yt_dvr.channel as channels
 import datetime
 import logging
 import multiprocessing
 import os
 import signal
 import sqlite3
+import sys
 
 shutdown_event = asyncio.Event()
 
@@ -136,6 +137,8 @@ async def main():
 
 def main_cli():
     asyncio.run(main())
+    config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
+    config.db.close()
 
 if __name__ == "__main__":
     LOG.setLevel(logging.DEBUG)
@@ -143,4 +146,3 @@ if __name__ == "__main__":
     asyncio.run(main())
     config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
     config.db.close()
-    

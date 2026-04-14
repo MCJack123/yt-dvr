@@ -1,7 +1,11 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "yt-dvr"
+name = "yt_dvr"
 description = "A service to automatically record livestreams from various platforms, backed by yt-dlp"
-version = "0.2"
+version = "0.2.1"
 authors = [{name = "JackMacWindows"}]
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -23,4 +27,11 @@ youtube = [
 ]
 
 [project.scripts]
-yt-dvr = "server:main_cli"
+yt-dvr = "yt_dvr:main_cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["yt_dvr*"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}

@@ -1,5 +1,5 @@
-from . import ChatRecorder
-from config import LOG
+from yt_dvr.channel import ChatRecorder
+from yt_dvr.config import LOG
 from io import TextIOWrapper
 import datetime
 import random

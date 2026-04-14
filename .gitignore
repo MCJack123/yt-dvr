@@ -5,3 +5,4 @@ cli_to_api.py
 *.spec
 build
 dist
+*.egg-info

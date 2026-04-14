@@ -3,7 +3,7 @@ import importlib
 import json
 import logging
 import sqlite3
-if TYPE_CHECKING: from channel import Channel
+if TYPE_CHECKING: from yt_dvr.channel import Channel
 else: Channel = object
 
 class Retention:
@@ -62,7 +62,7 @@ class Config:
             self.serverPort = dict["serverPort"]
             self.defaultRetention = Retention(dict["defaultRetention"])
             self.globalRetention = Retention(dict["globalRetention"])
-            channel = importlib.import_module("channel")
+            channel = importlib.import_module("yt_dvr.channel")
             self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
             self.pollInterval = dict["pollInterval"]
             self.remuxRecordings = dict["remuxRecordings"]

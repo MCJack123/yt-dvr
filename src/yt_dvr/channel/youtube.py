@@ -1,5 +1,5 @@
-from . import ChatRecorder
-from config import LOG
+from yt_dvr.channel import ChatRecorder
+from yt_dvr.config import LOG
 from dateutil import parser as dateparser
 from io import TextIOWrapper
 from pytchat.processors.default.processor import Chatdata

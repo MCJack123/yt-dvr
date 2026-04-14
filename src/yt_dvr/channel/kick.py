@@ -1,4 +1,4 @@
-from . import ChatRecorder
+from yt_dvr.channel import ChatRecorder
 from dateutil import parser as dateparser
 from io import TextIOWrapper
 import asyncio

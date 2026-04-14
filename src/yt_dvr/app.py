@@ -1,8 +1,8 @@
 from quart import Quart, request, send_file, render_template
 from typing import Awaitable, Callable, Any
 from urllib.parse import quote
-import channel as channels
-import config
+import yt_dvr.channel as channels
+import yt_dvr.config as config
 import datetime
 import json
 import logging
