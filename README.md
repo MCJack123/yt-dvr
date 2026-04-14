@@ -42,7 +42,7 @@ These settings can be configured through the web interface.
 The video database is stored in a SQLite database stored at `$YTDVR_DB`, default `ytdvr.db`.
 
 ## Running
-Run `python ytdvr/server.py`.
+Run `python -m yt_dvr.__init__`.
 
 The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
 
@@ -52,7 +52,7 @@ A Dockerfile is also provided for use in a Docker container.
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
 
 ```sh
-pyinstaller ytdvr/server.py -F --add-data templates:templates --collect-submodules ytdvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi
+pyinstaller src/yt_dvr/__init__.py -F --add-data templates:templates --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi
 ```
 
 ## License
