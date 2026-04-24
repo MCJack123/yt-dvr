@@ -129,9 +129,14 @@ class RecordingInfo:
         except FileExistsError: pass
         dl.params["outtmpl"] = {"default": config.saveDir + "/" + self.filename} # TODO: proper path and extension
         dl.params["hls_use_mpegts"] = True
-        #dl.params["writesubtitles"] = True
-        #dl.params["subtitleslangs"] = ["live_chat"]
         dl.params["wait_for_video"] = (2, 5)
+        # fix issue where ffmpeg download can hang forever
+        if not "external_downloader_args" in dl.params: dl.params["external_downloader_args"] = {}
+        if type(dl.params["external_downloader_args"]) is dict:
+            if not "ffmpeg" in dl.params["external_downloader_args"]: dl.params["external_downloader_args"]["ffmpeg"] = []
+            if type(dl.params["external_downloader_args"]["ffmpeg"]) is list:
+                if not "-rw_timeout" in dl.params["external_downloader_args"]["ffmpeg"]: dl.params["external_downloader_args"]["ffmpeg"].extend(["-rw_timeout", "15000000"])
+                if not "-seg_max_retry" in dl.params["external_downloader_args"]["ffmpeg"]: dl.params["external_downloader_args"]["ffmpeg"].extend(["-seg_max_retry", "20"])
         self._ytdlProcess = threading.Thread(target=self._ytdlMain, name=self.filename, args=[dl, loop]) # type: ignore
         self._ytdlProcess.start()
         if getChat: self._chatRecorder = get_chat_recorder(loop, platform, cast(str, info["original_url"]), config.saveDir + "/" + cast(str, self.chat_filename), info)
