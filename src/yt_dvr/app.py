@@ -190,7 +190,7 @@ async def api_channels():
             if "size" in data["retention"] and data["retention"]["size"] is not None and type(data["retention"]["size"]) != int: return ({"error": "'retention.size' not an integer"}, 400)
         if "ytdlParams" in data and data["ytdlParams"] is not None and type(data["ytdlParams"]) != dict: return ({"error": "'ytdlParams' not an object"}, 400)
         if data["name"] in config.config.channels: return ({"error": "Channel already exists"}, 400)
-        config.config.channels[data["name"]] = channels.Channel(obj=data)
+        config.config.channels[data["name"]] = channels.createChannel(obj=data)
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return (config.config.channels[data["name"]]._dump(), 201)
     else: return ({"error": "Invalid request method"}, 405)

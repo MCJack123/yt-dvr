@@ -8,5 +8,5 @@ python-dateutil
 pytchat # youtube.com
 kickpython # kick.com
 aiohttp # kick.com
-curl_cffi # kick.com
+yt_dlp[default,curl-cffi] # kick.com, rumble.com
 launchdarkly-eventsource[async] # rumble.com

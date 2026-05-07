@@ -19,7 +19,8 @@ dependencies = [
 [project.optional-dependencies]
 kick = [
     "kickpython",
-    "python-dateutil"
+    "python-dateutil",
+    "curl_cffi"
 ]
 youtube = [
     "pytchat",
@@ -27,7 +28,8 @@ youtube = [
 ]
 rumble = [
     "httpx",
-    "launchdarkly-eventsource[async]"
+    "launchdarkly-eventsource[async]",
+    "curl-cffi"
 ]
 
 [project.scripts]

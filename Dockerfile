@@ -7,11 +7,10 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y ffmpeg nodejs npm
 # for EJS support
 RUN npm install -g deno
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
-
+COPY pyproject.toml .
+COPY src src
 COPY templates templates
-COPY ytdvr ytdvr
+RUN pip install --no-cache-dir .[kick,youtube,rumble]
 
 RUN mkdir files
 VOLUME /usr/src/app/files
@@ -19,4 +18,4 @@ VOLUME /usr/src/app/files
 EXPOSE 6334
 ENV YTDVR_DB=files/ytdvr.db
 ENV YTDVR_CONFIG=files/ytdvr_config.json
-CMD [ "python", "ytdvr/server.py" ]
+CMD [ "python", "-m", "yt_dvr" ]
