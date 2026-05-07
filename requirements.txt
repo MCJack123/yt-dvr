@@ -9,3 +9,4 @@ pytchat # youtube.com
 kickpython # kick.com
 aiohttp # kick.com
 curl_cffi # kick.com
+launchdarkly-eventsource[async] # rumble.com

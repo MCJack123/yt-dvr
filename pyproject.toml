@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yt_dvr"
 description = "A service to automatically record livestreams from various platforms, backed by yt-dlp"
-version = "0.2.1"
+version = "0.3"
 authors = [{name = "JackMacWindows"}]
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -25,9 +25,13 @@ youtube = [
     "pytchat",
     "python-dateutil"
 ]
+rumble = [
+    "httpx",
+    "launchdarkly-eventsource[async]"
+]
 
 [project.scripts]
-yt-dvr = "yt_dvr:main_cli"
+yt-dvr = "yt_dvr.__main__:main_cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -63,7 +63,7 @@ class Config:
             self.defaultRetention = Retention(dict["defaultRetention"])
             self.globalRetention = Retention(dict["globalRetention"])
             channel = importlib.import_module("yt_dvr.channel")
-            self.channels = {k: channel.Channel(obj=c) for k, c in dict["channels"].items()}
+            self.channels = {k: channel.createChannel(obj=c) for k, c in dict["channels"].items()}
             self.pollInterval = dict["pollInterval"]
             self.remuxRecordings = dict["remuxRecordings"]
             self.remuxFormat = dict["remuxFormat"]

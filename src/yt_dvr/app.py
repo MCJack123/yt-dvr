@@ -1,8 +1,6 @@
 from quart import Quart, request, send_file, render_template
 from typing import Awaitable, Callable, Any
 from urllib.parse import quote
-import yt_dvr.channel as channels
-import yt_dvr.config as config
 import datetime
 import json
 import logging
@@ -10,6 +8,8 @@ import os
 import sys
 import yt_dlp
 import yt_dlp.options
+import yt_dvr.channel as channels
+import yt_dvr.config as config
 
 LOG = logging.getLogger("yt-dvr")
 

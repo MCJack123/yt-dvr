@@ -1,6 +1,7 @@
 from copy import copy
 from typing import Optional, cast, Callable, Any
 from yt_dlp import YoutubeDL, utils
+from yt_dvr.config import config, LOG, Retention
 import asyncio
 import ctypes
 import datetime
@@ -11,7 +12,6 @@ import os
 import pathvalidate
 import sys
 import threading
-from yt_dvr.config import config, LOG, Retention
 
 LOG = logging.getLogger("yt-dvr")
 
@@ -50,15 +50,19 @@ def get_chat_recorder(loop: asyncio.EventLoop, platform: str, url: str, filename
     :param filename: The file path to save at
     """
     if platform == "Twitch" or platform == "TwitchStream":
-        return importlib.import_module(".twitch", "channel").TwitchChatRecorder(url, filename)
+        return importlib.import_module(".twitch", "yt_dvr.channel").TwitchChatRecorder(url, filename)
     elif platform == "Youtube":
-        try: yt = importlib.import_module(".youtube", "channel")
+        try: yt = importlib.import_module(".youtube", "yt_dvr.channel")
         except: return None
         return yt.YoutubeChatRecorder(loop, info, filename)
     elif platform == "Kick":
-        try: kick = importlib.import_module(".kick", "channel")
+        try: kick = importlib.import_module(".kick", "yt_dvr.channel")
         except: return None
         return kick.KickChatRecorder(loop, url, filename)
+    elif platform == "RumbleEmbed" or platform == "Rumble":
+        try: rumble = importlib.import_module(".rumble", "yt_dvr.channel")
+        except: return None
+        return rumble.RumbleChatRecorder(info, filename)
     return None
 
 class RecordingInfo:
@@ -348,5 +352,13 @@ class Channel:
             "retention": self.retention._dump() if self.retention is not None else None,
             "ytdlParams": self.ytdlParams
         }
+    
+def createChannel(obj: dict) -> Channel:
+    url = cast(str, obj["url"])
+    if url.find("rumble.com") != -1:
+        try: rumble = importlib.import_module(".rumble", "yt_dvr.channel")
+        except ImportError as e: print(e); return Channel(obj)
+        return rumble.RumbleChannel(obj)
+    else: return Channel(obj)
 
 recordings: list[RecordingInfo] = []

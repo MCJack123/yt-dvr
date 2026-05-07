@@ -1,8 +1,6 @@
 from typing import Any
 from yt_dvr.config import LOG, config
-import yt_dvr.app as app
 import asyncio
-import yt_dvr.channel as channels
 import datetime
 import logging
 import multiprocessing
@@ -10,6 +8,8 @@ import os
 import signal
 import sqlite3
 import sys
+import yt_dvr.app as app
+import yt_dvr.channel as channels
 
 shutdown_event = asyncio.Event()
 
