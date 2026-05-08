@@ -52,7 +52,9 @@ class RumbleChatRecorder(ChatRecorder):
                             break
                     self.file.write("[%s][%d] %s: %s\n" % (msg["time"], (datetime.datetime.fromisoformat(msg["time"]) - self.start_time).total_seconds(), username, msg["text"]))
                 self.file.flush()
-            except RuntimeError as e: LOG.error(e)
+            except BaseException as e:
+                LOG.debug(event)
+                LOG.error(e)
         self.conn.close()
         self.file.close()
 
