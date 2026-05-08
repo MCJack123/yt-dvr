@@ -20,7 +20,7 @@ dependencies = [
 kick = [
     "kickpython",
     "python-dateutil",
-    "curl_cffi"
+    "yt_dlp[default,curl-cffi]"
 ]
 youtube = [
     "pytchat",
@@ -29,7 +29,7 @@ youtube = [
 rumble = [
     "httpx",
     "launchdarkly-eventsource[async]",
-    "curl-cffi"
+    "yt_dlp[default,curl-cffi]"
 ]
 
 [project.scripts]
