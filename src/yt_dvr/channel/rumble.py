@@ -92,6 +92,7 @@ class RumbleChannel(Channel):
                 try:
                     info = dl.extract_info(video["url"], False)
                 except utils.DownloadError:
+                    dl.close()
                     loop.call_soon_threadsafe(future.set_result, (False, None))
                     return
                 loop.call_soon_threadsafe(future.set_result, (True, (dl, info))) # type: ignore

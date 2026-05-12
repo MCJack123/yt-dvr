@@ -257,6 +257,7 @@ class RecordingInfo:
         try: dl.download(self.url)
         except: LOG.error("A download error occurred in " + self.title)
         finally:
+            dl.close()
             self.in_progress = False
             if not self._abort:
                 if not self.in_progress and self.filename.endswith(".ts") and config.remuxRecordings:
@@ -298,6 +299,7 @@ class Channel:
         try:
             info = dl.extract_info(self.url, False)
         except utils.DownloadError:
+            dl.close()
             loop.call_soon_threadsafe(future.set_result, (False, None))
             return
         loop.call_soon_threadsafe(future.set_result, (True, (dl, info))) # type: ignore
