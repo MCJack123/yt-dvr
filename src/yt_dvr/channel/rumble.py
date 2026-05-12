@@ -69,15 +69,15 @@ class RumbleChannel(Channel):
         m = channel_name_regex.match(self.url)
         if not m: raise ValueError(f"URL {self.url} is not a Rumble URL")
         channel_name = m.group(1)
-        client = httpx.Client()
-        response = client.get(f"https://rumble.com/service.php?name=search&query={channel_name}&offset=0&limit=6&api=7")
-        data = response.json()
-        self.channel_id = next(filter(lambda it: it["name"] == channel_name, cast(list, data["data"]["channel"]["items"])))["id"]
+        with httpx.Client() as client:
+            response = client.get(f"https://rumble.com/service.php?name=search&query={channel_name}&offset=0&limit=6&api=7")
+            data = response.json()
+            self.channel_id = next(filter(lambda it: it["name"] == channel_name, cast(list, data["data"]["channel"]["items"])))["id"]
 
     def _check_live(self, loop: asyncio.EventLoop, future: asyncio.Future):
-        client = httpx.Client()
-        response = client.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7")
-        data = response.json()
+        with httpx.Client() as client:
+            response = client.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7")
+            data = response.json()
         try:
             video = data["data"]["items"][0]
             if video["live"]:
