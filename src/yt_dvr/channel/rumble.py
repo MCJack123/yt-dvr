@@ -25,6 +25,7 @@ class RumbleChatRecorder(ChatRecorder):
     file: TextIOWrapper
     running: bool
     start_time: datetime.datetime
+    known_user_ids: dict[int, str]
 
     def __init__(self, info: dict, filename: str):
         # ID exposed in info is in base36, decode it
@@ -36,6 +37,7 @@ class RumbleChatRecorder(ChatRecorder):
         self.thread = threading.Thread(target=self._worker, name="Rumble chat for " + info["channel"], args=[info["channel"]])
         self.thread.start()
         self.start_time = datetime.datetime.now(datetime.UTC)
+        self.known_user_ids = {}
 
     def _worker(self, name: str):
         LOG.debug("Connecting to chat for " + name)
@@ -44,13 +46,27 @@ class RumbleChatRecorder(ChatRecorder):
             if event.event != "message": continue
             try:
                 data = json.loads(event.data)
-                for msg in data["data"]["messages"]:
-                    username = "<" + str(msg["user_id"]) + ">"
-                    for user in data["data"]["users"]:
-                        if user["id"] == msg["user_id"]:
-                            username = user["username"]
-                            break
-                    self.file.write("[%s][%d] %s: %s\n" % (msg["time"], (datetime.datetime.fromisoformat(msg["time"]) - self.start_time).total_seconds(), username, msg["text"]))
+                if data["type"] == "messages":
+                    for msg in data["data"]["messages"]:
+                        if msg["user_id"] in self.known_user_ids:
+                            username = self.known_user_ids[msg["user_id"]]
+                        else:
+                            username = "<" + str(msg["user_id"]) + ">"
+                            for user in data["data"]["users"]:
+                                if user["id"] == msg["user_id"]:
+                                    username = user["username"]
+                                    self.known_user_ids[msg["user_id"]] = username
+                                    break
+                        self.file.write("[%s][%d] %s: %s\n" % (msg["time"], (datetime.datetime.fromisoformat(msg["time"]) - self.start_time).total_seconds(), username, msg["text"]))
+                elif data["type"] == "mute_users":
+                    for id in data["data"]["user_id"]:
+                        if id in self.known_user_ids:
+                            username = self.known_user_ids[id]
+                        else:
+                            username = "<" + str(id) + ">"
+                        self.file.write("[%s][%d] %s has been muted.\n" % (datetime.datetime.now().isoformat(sep=" ", timespec="seconds"), (datetime.datetime.now(datetime.UTC) - self.start_time).total_seconds(), username))
+                else:
+                    self.file.write(event.data + "\n")
                 self.file.flush()
             except BaseException as e:
                 LOG.debug(event)
