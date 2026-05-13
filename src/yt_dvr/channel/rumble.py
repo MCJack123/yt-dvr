@@ -46,7 +46,7 @@ class RumbleChatRecorder(ChatRecorder):
             if event.event != "message": continue
             try:
                 data = json.loads(event.data)
-                if data["type"] == "messages":
+                if data["type"] == "messages" or data["type"] == "init":
                     for msg in data["data"]["messages"]:
                         if msg["user_id"] in self.known_user_ids:
                             username = self.known_user_ids[msg["user_id"]]
