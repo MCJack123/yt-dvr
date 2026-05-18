@@ -113,13 +113,16 @@ async def main():
                 try:
                     next(r for r in channels.recordings if r.channel == name and r.in_progress)
                 except StopIteration:
-                    ok, arg = await channel.check_live()
-                    if ok:
-                        LOG.info(f"Starting recording for channel {name}")
-                        rec = await channel.download(name, arg)
-                        channels.recordings.append(rec)
-                    else:
-                        LOG.debug(f"Stream {name} is not live")
+                    try:
+                        ok, arg = await channel.check_live()
+                        if ok:
+                            LOG.info(f"Starting recording for channel {name}")
+                            rec = await channel.download(name, arg)
+                            channels.recordings.append(rec)
+                        else:
+                            LOG.debug(f"Stream {name} is not live")
+                    except BaseException as e:
+                        LOG.error("Exception raised while checking:", e)
             LOG.debug("Done checking")
             config.lastScanTime = datetime.datetime.now()
             try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.pollInterval)

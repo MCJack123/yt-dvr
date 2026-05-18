@@ -46,7 +46,7 @@ Run `python -m yt_dvr.__init__`.
 
 The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
 
-A Dockerfile is also provided for use in a Docker container.
+A Dockerfile is also provided for use in a Docker container. Use the `/api/healthcheck` endpoint to make sure the server, downloads and scanning are working.
 
 ### PyInstaller packaging
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.

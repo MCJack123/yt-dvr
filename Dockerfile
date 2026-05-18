@@ -1,3 +1,11 @@
+# Add to compose.yml for healthcheck:
+#   healthcheck:
+#     test: curl -f http://localhost:6334/api/healthcheck || exit 1
+#     interval: 30s
+#     timeout: 10s
+#     retries: 5
+#     start_period: 30s
+
 FROM python:3.14-trixie
 
 WORKDIR /usr/src/app

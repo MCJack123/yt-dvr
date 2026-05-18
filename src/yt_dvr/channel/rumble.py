@@ -91,10 +91,10 @@ class RumbleChannel(Channel):
             self.channel_id = next(filter(lambda it: it["name"] == channel_name, cast(list, data["data"]["channel"]["items"])))["id"]
 
     def _check_live(self, loop: asyncio.EventLoop, future: asyncio.Future):
-        with httpx.Client() as client:
-            response = client.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7")
-            data = response.json()
         try:
+            with httpx.Client() as client:
+                response = client.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7")
+                data = response.json()
             video = data["data"]["items"][0]
             if video["live"]:
                 dl = YoutubeDL(copy(self.ytdlParams)) # type: ignore
@@ -114,6 +114,6 @@ class RumbleChannel(Channel):
                 loop.call_soon_threadsafe(future.set_result, (True, (dl, info))) # type: ignore
             else:
                 loop.call_soon_threadsafe(future.set_result, (False, None))
-        except KeyError as e:
+        except BaseException as e:
             print(e)
             loop.call_soon_threadsafe(future.set_result, (False, None))
