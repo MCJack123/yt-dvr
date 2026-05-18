@@ -1,4 +1,5 @@
 from typing import Optional, cast, TYPE_CHECKING
+import datetime
 import importlib
 import json
 import logging
@@ -40,6 +41,7 @@ class Config:
     ffmpegPath: Optional[str]
 
     db: sqlite3.Connection
+    lastScanTime: datetime.datetime
 
     def __init__(self):
         self.saveDir = "files"

@@ -83,6 +83,7 @@ class RecordingInfo:
     _chatRecorder: Optional[ChatRecorder]
     _stop: bool
     _abort: bool
+    _healthcheck_lastSize: int
 
     def __init__(self, platform: str, channel: str, title: str, timestamp: int, url: str, filename: str, chat_filename: Optional[str], in_progress: bool):
         """
@@ -108,6 +109,7 @@ class RecordingInfo:
         self._chatRecorder = None
         self._stop = False
         self._abort = False
+        self._healthcheck_lastSize = 0
 
     @classmethod
     def _create_ytdl(cls, loop: asyncio.EventLoop, dl: YoutubeDL, info: dict, getChat: bool, platform: str, channel: str, title: str):
@@ -234,6 +236,35 @@ class RecordingInfo:
             os.remove(config.saveDir + "/" + self.filename)
             if self.chat_filename is not None: os.remove(config.saveDir + "/" + self.chat_filename)
         except: pass
+
+    def healthcheck(self) -> bool:
+        """
+        Checks whether the recording process is healthy.
+
+        This should always return true for VODs. Live recordings should check
+        whether the recording process is active.
+
+        :returns: Whether the recording is healthy
+        """
+        if not self.in_progress: return True
+        try:
+            file = self.filename
+            path = ""
+            if os.path.isfile(config.saveDir + "/" + file):
+                path = config.saveDir + "/" + file
+            elif os.path.isfile(config.saveDir + "/" + file + ".part"):
+                path = config.saveDir + "/" + file + ".part"
+            elif os.path.isfile(config.saveDir + "/" + file.replace(".ts", ".mp4")):
+                path = config.saveDir + "/" + file.replace(".ts", ".mp4")
+            elif os.path.isfile(config.saveDir + "/" + file.replace(".ts", ".mp4.part")):
+                path = config.saveDir + "/" + file.replace(".ts", ".mp4.part")
+            else: return False
+            size = os.path.getsize(path)
+            ok = self._healthcheck_lastSize == 0 or size > self._healthcheck_lastSize
+            self._healthcheck_lastSize = size
+            return ok
+        except:
+            return False
 
     def _dump(self):
         return {

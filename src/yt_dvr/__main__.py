@@ -86,6 +86,7 @@ async def retention_watcher():
 
 async def main():
     LOG.info("Starting yt-dvr")
+    config.lastScanTime = datetime.datetime.now()
     config.load(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
     config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
     config.db = sqlite3.connect(os.getenv("YTDVR_DB") or "./ytdvr.db")
@@ -120,8 +121,9 @@ async def main():
                     else:
                         LOG.debug(f"Stream {name} is not live")
             LOG.debug("Done checking")
+            config.lastScanTime = datetime.datetime.now()
             try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.pollInterval)
-            except TimeoutError: pass
+            except: pass
     except KeyboardInterrupt:
         LOG.warning("Caught interrupt, exiting")
         for r in channels.recordings: r.stop()

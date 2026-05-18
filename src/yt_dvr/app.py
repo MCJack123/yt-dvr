@@ -272,6 +272,12 @@ async def api_videos():
     retval.sort(key=lambda info: info["timestamp"], reverse=True)
     return retval
 
+@app.route("/api/healthcheck", methods=["GET"])
+async def api_healthcheck():
+    if (datetime.datetime.now() - config.config.lastScanTime).total_seconds() > config.config.pollInterval * 2 or not all(r.healthcheck() for r in channels.recordings):
+        return ("false", 500)
+    return ("true", 200)
+
 def run(port: int | None = None, shutdown: Callable[..., Awaitable[Any | None]] | None = None):
     LOG.info("Starting yt-dvr web interface")
     return app.run_task(port=port if port is not None else 6334, shutdown_trigger=shutdown)
