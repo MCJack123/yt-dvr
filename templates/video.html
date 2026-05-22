@@ -21,7 +21,7 @@
         }
 
         function deleteVideo() {
-            fetch("/api/channels/{{ info.channel }}/{{ info.timestamp }}", {method: "DELETE"}).then(res => {
+            fetch("{{ basePath }}/api/channels/{{ info.channel }}/{{ info.timestamp }}", {method: "DELETE"}).then(res => {
                 if (res.ok) history.back();
                 else return res.json();
             }).then(body => alert("Failed to delete video: " + body.error));
@@ -32,7 +32,7 @@
             <source src="{{ urlencode(info.path) }}" type="video/mp4" onerror="loadHls()">
         </video>
         <h3><span style="width: 12pt; height: 12pt; background-color: #d66; border-radius: 50%; display: {{ 'inline-block' if info.in_progress else 'none' }};"></span> {{ info.title }}</h3>
-        <h5><a class="link-secondary" href="/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
+        <h5><a class="link-secondary" href="{{ basePath }}/channels/{{ info.channel }}">{{ info.channel }}</a> - {{ info.platform }}</h5>
         <p>{{ formattime(info.timestamp) }}</p>
         <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteVideoModal">Delete</button>
     </div>

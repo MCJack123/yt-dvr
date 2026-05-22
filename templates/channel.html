@@ -31,7 +31,7 @@
                     return;
                 }
             }
-            fetch("/api/channels/{{ channel }}", {
+            fetch("{{ basePath }}/api/channels/{{ channel }}", {
                 method: "PUT",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({
@@ -52,8 +52,8 @@
         }
 
         function deleteChannel() {
-            fetch("/api/channels/{{ channel }}", {method: "DELETE"}).then(res => {
-                if (res.ok) location.href = "/channels";
+            fetch("{{ basePath }}/api/channels/{{ channel }}", {method: "DELETE"}).then(res => {
+                if (res.ok) location.href = "{{ basePath }}/channels";
                 else return res.json();
             }).then(body => alert("Failed to delete channel: " + body.error));
         }

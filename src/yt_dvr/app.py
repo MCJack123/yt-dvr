@@ -54,7 +54,7 @@ def cli_to_api(opts, cli_defaults=False):
 async def home():
     videos = [info._dump() for info in channels.recordings]
     videos.sort(key=lambda info: info["timestamp"], reverse=True)
-    return await render_template("index.html", videos=videos, formatdate=formatdate)
+    return await render_template("index.html", videos=videos, formatdate=formatdate, basePath=config.config.serverSubpath)
 
 @app.route("/assets/<path:subpath>")
 async def assets(subpath):
@@ -65,7 +65,7 @@ async def file(subpath: str):
     if os.path.isfile(config.config.saveDir + "/" + subpath):
         if subpath.endswith(".part"): return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=0, mimetype="video/mpeg-ts", conditional=True)
         else: return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None, conditional=True)
-    else: return (await render_template("404.html", message="The requested file does not exist."), 404)
+    else: return (await render_template("404.html", message="The requested file does not exist.", basePath=config.config.serverSubpath), 404)
 
 @app.route("/files/<channel>/<file>.m3u8")
 async def file_m3u8(channel, file):
@@ -78,7 +78,7 @@ async def file_m3u8(channel, file):
         path = file + ".mp4"
     elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
-    else: return (await render_template("404.html", message="The requested file does not exist."), 404)
+    else: return (await render_template("404.html", message="The requested file does not exist.", basePath=config.config.serverSubpath), 404)
     duration = "10"
     if not path.endswith(".mp4"):
         for video in channels.recordings:
@@ -86,16 +86,17 @@ async def file_m3u8(channel, file):
                 if video.in_progress:
                     duration = str(int(datetime.datetime.now().timestamp()) - video.timestamp)
                 break
+    path = config.config.serverSubpath + path
     if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:" + duration + "\n" + quote(path) + "\n"
     else: return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:" + duration + "\n" + quote(path) + "\n#EXT-X-ENDLIST\n"
 
 @app.route("/settings")
 async def settings():
-    return await render_template("settings.html", settings=config.config._dump(True))
+    return await render_template("settings.html", settings=config.config._dump(True), basePath=config.config.serverSubpath)
 
 @app.route("/channels")
 async def channels_():
-    return await render_template("channels.html", channels=[(k, c._dump()) for k, c in config.config.channels.items()])
+    return await render_template("channels.html", channels=[(k, c._dump()) for k, c in config.config.channels.items()], basePath=config.config.serverSubpath)
 
 @app.route("/channels/<channel>")
 async def channel_(channel):
@@ -103,16 +104,16 @@ async def channel_(channel):
         c = config.config.channels[channel]
         videos = [info._dump() for info in channels.recordings if info.channel == channel]
         videos.sort(key=lambda info: info["timestamp"], reverse=True)
-        return await render_template("channel.html", channel=channel, contents=c._dump(), ytdlParams=json.dumps(c.ytdlParams) if c.ytdlParams is not None else "", videos=videos, formatdate=formatdate)
+        return await render_template("channel.html", channel=channel, contents=c._dump(), ytdlParams=json.dumps(c.ytdlParams) if c.ytdlParams is not None else "", videos=videos, formatdate=formatdate, basePath=config.config.serverSubpath)
     except KeyError:
-        return (await render_template("404.html", message="The channel requested was not found."), 404)
+        return (await render_template("404.html", message="The channel requested was not found.", basePath=config.config.serverSubpath), 404)
 
 @app.route("/channels/<channel>/<int:timestamp>")
 async def video(channel, timestamp):
     for info in channels.recordings:
         if info.channel == channel and info.timestamp == timestamp:
-            return await render_template("video.html", info=info._dump(), formattime=formattime, urlencode=quote)
-    return (await render_template("404.html", message="The recording requested was not found."), 404)
+            return await render_template("video.html", info=info._dump(), formattime=formattime, urlencode=quote, basePath=config.config.serverSubpath)
+    return (await render_template("404.html", message="The recording requested was not found.", basePath=config.config.serverSubpath), 404)
 
 @app.route("/stop")
 async def stop():
@@ -137,6 +138,9 @@ async def api_settings():
         if "serverPort" in data:
             if type(data["serverPort"]) != int: return ({"error": "'serverPort' not an integer"}, 400)
             config.config.serverPort = data["serverPort"]
+        if "serverSubpath" in data:
+            if type(data["serverSubpath"]) != str: return ({"error": "'serverSubpath' not a string"}, 400)
+            config.config.serverSubpath = data["serverSubpath"]
         if "pollInterval" in data:
             if type(data["pollInterval"]) != int: return ({"error": "'pollInterval' not an integer"}, 400)
             config.config.pollInterval = data["pollInterval"]

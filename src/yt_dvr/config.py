@@ -39,6 +39,7 @@ class Config:
     remuxFormat: str
     logLevel: str
     ffmpegPath: Optional[str]
+    serverSubpath: str
 
     db: sqlite3.Connection
     lastScanTime: datetime.datetime
@@ -54,6 +55,7 @@ class Config:
         self.remuxFormat = "mp4"
         self.logLevel = "INFO"
         self.ffmpegPath = None
+        self.serverSubpath = ""
 
     def load(self, path: str):
         try:
@@ -71,6 +73,7 @@ class Config:
             self.remuxFormat = dict["remuxFormat"]
             self.logLevel = dict["logLevel"] if "logLevel" in dict else "INFO"
             self.ffmpegPath = dict["ffmpegPath"] if "ffmpegPath" in dict else None
+            self.serverSubpath = dict["serverSubpath"] if "serverSubpath" in dict else ""
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:
@@ -85,6 +88,7 @@ class Config:
                 "remuxFormat": self.remuxFormat,
                 "logLevel": self.logLevel,
                 "ffmpegPath": self.ffmpegPath,
+                "serverSubpath": self.serverSubpath,
             }
         return {
             "saveDir": self.saveDir,
@@ -97,6 +101,7 @@ class Config:
             "remuxFormat": self.remuxFormat,
             "logLevel": self.logLevel,
             "ffmpegPath": self.ffmpegPath,
+            "serverSubpath": self.serverSubpath,
         }
 
     def dumps(self) -> str:

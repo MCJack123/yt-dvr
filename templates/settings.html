@@ -3,7 +3,7 @@
 {% block content %}
     <script>
         function updateSettings() {
-            fetch("/api/settings", {
+            fetch("{{ basePath }}/api/settings", {
                 method: "PUT",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({

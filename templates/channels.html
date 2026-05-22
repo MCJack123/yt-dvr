@@ -4,7 +4,7 @@
     <script>
         function addChannel() {
             let name = document.getElementById("addChannelName").value;
-            fetch("/api/channels", {
+            fetch("{{ basePath }}/api/channels", {
                 method: "POST",
                 body: JSON.stringify({
                     name: name,
@@ -14,7 +14,7 @@
                     "Content-Type": "application/json"
                 }
             }).then(res => {
-                if (res.ok) location.href = "/channels/" + name;
+                if (res.ok) location.href = "{{ basePath }}/channels/" + name;
                 else return res.json();
             }).then(body => alert("Failed to add channel: " + body.error));
         }

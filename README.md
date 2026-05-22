@@ -17,6 +17,7 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
 
 - `saveDir`: The directory to store recordings in.
 - `serverPort`: The port to host the internal server on.
+- `serverSubpath`: A path to prepend to links in the internal server, in case the server is reverse proxied to a subpath.
 - `defaultRetention`: An object containing keys indicating the maximum amounts to keep of a certain channel by default. Files will be deleted when any of the retention counts are hit, starting with the oldest. Null values mean the category is ignored/infinity - if all are null, files will never be deleted.
   - `count`: The maximum number of recordings to keep.
   - `time`: The maximum age of a recording, in days.
