@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "yt_dvr"
 description = "A service to automatically record livestreams from various platforms, backed by yt-dlp"
-version = "0.3"
+version = "0.3.0"
 authors = [{name = "JackMacWindows"}]
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -27,7 +27,7 @@ youtube = [
     "python-dateutil"
 ]
 rumble = [
-    "httpx",
+    "curl-cffi",
     "launchdarkly-eventsource[async]",
     "yt_dlp[default,curl-cffi]"
 ]

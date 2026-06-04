@@ -7,8 +7,8 @@ from yt_dlp.networking.impersonate import ImpersonateTarget
 from yt_dvr.channel import ChatRecorder, Channel
 from yt_dvr.config import LOG, config
 import asyncio
+import curl_cffi
 import datetime
-import httpx
 import json
 import ld_eventsource
 import logging
@@ -85,16 +85,14 @@ class RumbleChannel(Channel):
         m = channel_name_regex.match(self.url)
         if not m: raise ValueError(f"URL {self.url} is not a Rumble URL")
         channel_name = m.group(1)
-        with httpx.Client() as client:
-            response = client.get(f"https://rumble.com/service.php?name=search&query={channel_name}&offset=0&limit=6&api=7")
-            data = response.json()
-            self.channel_id = next(filter(lambda it: it["name"] == channel_name, cast(list, data["data"]["channel"]["items"])))["id"]
+        response = curl_cffi.get(f"https://rumble.com/service.php?name=search&query={channel_name}&offset=0&limit=6&api=7", impersonate="chrome")
+        data = response.json()
+        self.channel_id = next(filter(lambda it: it["name"] == channel_name, cast(list, data["data"]["channel"]["items"])))["id"]
 
     def _check_live(self, loop: asyncio.EventLoop, future: asyncio.Future):
         try:
-            with httpx.Client() as client:
-                response = client.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7")
-                data = response.json()
+            response = curl_cffi.get(f"https://rumble.com/service.php?id={self.channel_id}&offset=0&name=video_collection.videos&options=video.full&content_type=long-form&sort=&limit=6&api=7", impersonate="chrome")
+            data = response.json()
             video = data["data"]["items"][0]
             if video["live"]:
                 dl = YoutubeDL(copy(self.ytdlParams)) # type: ignore

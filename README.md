@@ -1,12 +1,24 @@
 # yt-dvr
-A service to automatically record livestreams from various platforms, backed by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+A service to automatically record livestreams from many platforms, backed by [yt-dlp](https://github.com/yt-dlp/yt-dlp).
+
+yt-dvr supports downloading livestreams from [any site supported by yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md). It also supports recording chat for the following services:
+- Twitch
+- YouTube
+- Kick
+- Rumble
 
 Channels are automatically pinged at a specified frequency, and recorded if they are live. Recordings are handled by yt-dlp, supporting hundreds of platforms, with specific support for certain platform features (e.g. chat).
 
 A small web interface is served via Quart, for basic video playback and service configuration. An external media server is recommended if media organization is important - the interface is only meant for limited usage and is not optimized for multiple users, sorting, etc.
 
 ## Install
-Built executables can be found under Releases on the right.
+Built executables can be found under Releases on the right. To use these, simply run the program and go to the URL displayed in the console window. It is recommended to put the program in its own folder, as it places config files and downloads next to itself.
+
+yt-dvr is also available on PyPI:
+
+```sh
+pip install yt-dvr
+```
 
 Requires Python (any recent version will do, no idea how old). You will also need a working copy of FFmpeg installed. Deno is required if recording YouTube streams.
 
@@ -43,7 +55,7 @@ These settings can be configured through the web interface.
 The video database is stored in a SQLite database stored at `$YTDVR_DB`, default `ytdvr.db`.
 
 ## Running
-Run `python -m yt_dvr.__init__`.
+Run `python -m yt_dvr`.
 
 The web interface is hosted at `http://localhost:6334` by default. The URL will be printed to the console.
 
@@ -53,7 +65,7 @@ A Dockerfile is also provided for use in a Docker container. Use the `/api/healt
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
 
 ```sh
-pyinstaller src/yt_dvr/__init__.py -F --add-data templates:templates --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi
+pyinstaller src/yt_dvr/__main__.py -F -p src --add-data templates:templates --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi --collect-all kickpython --collect-all dateutil --collect-all pytchat --collect-all ld_eventsource
 ```
 
 ## License
