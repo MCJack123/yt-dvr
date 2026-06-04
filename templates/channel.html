@@ -85,14 +85,14 @@
                                 <input type="text" class="form-control" id="quality" value="{{ contents.quality or '' }}">
                             </div>
                             <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="getChat" checked="{{ 'true' if contents.getChat else 'false' }}">
+                                <input type="checkbox" class="form-check-input" id="getChat" {{ 'checked' if contents.getChat else '' }}>
                                 <label class="form-check-label" for="getChat">Get chat?</label>
                             </div>
                             <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="retention" checked="{{ 'true' if contents.retention else 'false' }}" data-bs-toggle="show" data-bs-target="#retentionCollapse">
+                                <input type="checkbox" class="form-check-input" id="retention" {{ 'checked' if contents.retention else '' }}" data-bs-toggle="collapse" data-bs-target="#retentionCollapse">
                                 <label class="form-check-label" for="retention">Override retention policy</label>
                             </div>
-                            <div class="mb-3 collapse {{ 'show' if contents.retention else '' }}" id="retentionCollapse">
+                            <div class="mb-3 {{ '' if contents.retention else 'collapse' }}" id="retentionCollapse">
                                 <div class="row">
                                     <div class="col">
                                         <label for="count" class="form-label">Count</label>
