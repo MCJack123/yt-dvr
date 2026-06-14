@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block head %}
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Settings - yt-dvr</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+        <style>
+            body {
+                min-height: 100%;
+                margin-bottom: 40px;
+            }
+        </style>
+{% endblock %}
+{% block format_info %}This is the direct data that is sent to the Webhook (usually a JSON string). The format replaces any field below wrapped in <code>${}</code> with the described value:<ul><li><code>${platform}</code>: The platform of the channel</li><li><code>${channel}</code>: The name of the channel</li><li><code>${title}</code>: The title of the stream</li><li><code>${timestamp}</code>: The UNIX timestamp when recording started</li><li><code>${date}</code>: The ISO 8601-formatted date when recording started</li><li><code>${url}</code>: The URL of the stream</li></ul>Quotes and backslashes in any value are automatically escaped.{% endblock %}
+{% block content %}
+    <script>
+        function updateSettings() {
+            let body = {
+                saveDir: document.getElementById("saveDir").value,
+                serverPort: parseInt(document.getElementById("serverPort").value),
+                logLevel: document.getElementById("logLevel").value,
+                ffmpegPath: document.getElementById("ffmpegPath").value.length > 0 ? document.getElementById("ffmpegPath").value.length : null,
+                pollInterval: parseInt(document.getElementById("pollInterval").value),
+                remuxRecordings: document.getElementById("remuxRecordings").checked,
+                remuxFormat: document.getElementById("remuxFormat").value,
+                defaultRetention: {
+                    count: parseInt(document.getElementById("default_count").value) > 0 ? parseInt(document.getElementById("default_count").value) : null,
+                    size: parseInt(document.getElementById("default_size").value) > 0 ? parseInt(document.getElementById("default_size").value) : null,
+                    time: parseInt(document.getElementById("default_time").value) > 0 ? parseInt(document.getElementById("default_time").value) : null
+                },
+                globalRetention: {
+                    count: parseInt(document.getElementById("global_count").value) > 0 ? parseInt(document.getElementById("global_count").value) : null,
+                    size: parseInt(document.getElementById("global_size").value) > 0 ? parseInt(document.getElementById("global_size").value) : null,
+                    time: parseInt(document.getElementById("global_time").value) > 0 ? parseInt(document.getElementById("global_time").value) : null
+                },
+            }
+            document.getElementById("webhookUrl").classList.remove("is-invalid");
+            document.getElementById("webhookStartedFormat").classList.remove("is-invalid");
+            document.getElementById("webhookEndedFormat").classList.remove("is-invalid");
+            if (document.getElementById("webhook").checked) {
+                let ok = true;
+                if (!document.getElementById("webhookUrl").value) {
+                    ok = false;
+                    document.getElementById("webhookUrl").classList.add("is-invalid");
+                }
+                if (!document.getElementById("webhookStartedFormat").value) {
+                    ok = false;
+                    document.getElementById("webhookStartedFormat").classList.add("is-invalid");
+                }
+                if (!document.getElementById("webhookEndedFormat").value) {
+                    ok = false;
+                    document.getElementById("webhookEndedFormat").classList.add("is-invalid");
+                }
+                if (!ok) return;
+                body.webhook = {
+                    url: document.getElementById("webhookUrl").value,
+                    startedFormat: document.getElementById("webhookStartedFormat").value,
+                    endedFormat: document.getElementById("webhookEndedFormat").value,
+                    contentType: document.getElementById("webhookContentType").value.length > 0 ? document.getElementById("webhookContentType").value : null,
+                };
+            } else body.webhook = null;
+            fetch("{{ basePath }}/api/settings", {
+                method: "PUT",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(body)
+            }).then(res => {
+                if (res.ok) bootstrap.Toast.getOrCreateInstance(document.getElementById('updatedToast')).show();
+            });
+        }
+
+        function discord_template() {
+            document.getElementById("webhookStartedFormat").value = '{"content": "Recording started for ${channel} (${platform}) - ${title}"}';
+            document.getElementById("webhookEndedFormat").value = '{"content": "Recording stopped for ${channel} (${platform}) - ${title}"}';
+            document.getElementById("webhookContentType").value = "application/json; charset=utf-8";
+        }
+    </script>
+    <div class="container text-left" style="margin-top: 20px">
+        <div class="row row-cols-auto mb-3">
+            <h3>Settings</h3>
+        </div>
+        <form class="row">
+            <div class="mb-3">
+                <label for="saveDir" class="form-label">Save directory</label>
+                <input type="text" class="form-control" id="saveDir" value="{{ settings.saveDir }}">
+            </div>
+            <div class="mb-3">
+                <label for="serverPort" class="form-label">Server port</label>
+                <input type="number" class="form-control" id="serverPort" value="{{ settings.serverPort }}">
+            </div>
+            <div class="mb-3">
+                <label for="logLevel" class="form-label">Log level</label>
+                <select id="logLevel" class="form-select" aria-label="Log level">
+                    <option value="DEBUG" {{ "selected" if settings.logLevel == "DEBUG" else "" }}>DEBUG</option>
+                    <option value="INFO" {{ "selected" if settings.logLevel == "INFO" else "" }}>INFO</option>
+                    <option value="WARNING" {{ "selected" if settings.logLevel == "WARNING" else "" }}>WARNING</option>
+                    <option value="ERROR" {{ "selected" if settings.logLevel == "ERROR" else "" }}>ERROR</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="ffmpegPath" class="form-label">FFmpeg path</label>
+                <input type="text" class="form-control" id="ffmpegPath" value="{{ '' if settings.ffmpegPath is none else settings.ffmpegPath }}">
+            </div>
+            <div class="mb-3">
+                <label for="pollInterval" class="form-label">Poll interval (seconds)</label>
+                <input type="number" class="form-control" id="pollInterval" value="{{ settings.pollInterval }}">
+            </div>
+            <label for="remuxFormat" class="form-label">Remux recordings?</label>
+            <div class="input-group mb-3">
+                <div class="input-group-text">
+                     <input type="checkbox" class="form-check-input" id="remuxRecordings" {{ 'checked' if settings.remuxRecordings else '' }}>
+                </div>
+                <input type="text" placeholder="Remux format" class="form-control" id="remuxFormat" value="{{ settings.remuxFormat }}">
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Default channel retention policy</h5>
+                    <div class="row">
+                        <div class="col">
+                            <label for="count" class="form-label">Count</label>
+                            <input type="number" class="form-control" id="default_count" value="{{ settings.defaultRetention.count }}">
+                        </div>
+                        <div class="col">
+                            <label for="size" class="form-label">Size (megabytes)</label>
+                            <input type="number" class="form-control" id="default_size" value="{{ settings.defaultRetention.size }}">
+                        </div>
+                        <div class="col">
+                            <label for="time" class="form-label">Time (days)</label>
+                            <input type="number" class="form-control" id="default_time" value="{{ settings.defaultRetention.time }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Global retention policy</h5>
+                    <div class="row">
+                        <div class="col">
+                            <label for="count" class="form-label">Count</label>
+                            <input type="number" class="form-control" id="global_count" value="{{ settings.globalRetention.count }}">
+                        </div>
+                        <div class="col">
+                            <label for="size" class="form-label">Size (megabytes)</label>
+                            <input type="number" class="form-control" id="global_size" value="{{ settings.globalRetention.size }}">
+                        </div>
+                        <div class="col">
+                            <label for="time" class="form-label">Time (days)</label>
+                            <input type="number" class="form-control" id="global_time" value="{{ settings.globalRetention.time }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Webhook settings</h5>
+                    <div class="mb-3">
+                        <label for="webhook" class="form-label">Enable webhook?</label>
+                        <input type="checkbox" class="form-check-input" id="webhook" {{ 'checked' if settings.webhook is not none else '' }}>
+                    </div>
+                    <div class="mb-3">
+                        <label for="webhookUrl" class="form-label">Webhook URL</label>
+                        <input type="text" class="form-control" id="webhookUrl" value="{{ settings.webhook.url if settings.webhook is not none else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <div class="col">
+                            Format templates:
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="discord_template()">Discord</button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="col">
+                            <label for="webhookStartedFormat" class="form-label">Format string for starting recording</label>
+                            <button type="button" class="btn btn-dark btn-sm" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="right" data-bs-content="{{ self.format_info() }}">ⓘ</button>
+                        </div>
+                        <input type="text" class="form-control" id="webhookStartedFormat" value="{{ settings.webhook.startedFormat if settings.webhook is not none else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <div class="col">
+                            <label for="webhookEndedFormat" class="form-label">Format string for ending recording</label>
+                            <button type="button" class="btn btn-dark btn-sm" data-bs-container="body" data-bs-toggle="popover" data-bs-placement="right" data-bs-content="{{ self.format_info() }}">ⓘ</button>
+                        </div>
+                        <input type="text" class="form-control" id="webhookEndedFormat" value="{{ settings.webhook.endedFormat if settings.webhook is not none else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="webhookContentType" class="form-label">Content-Type (optional, default <code>application/json</code>)</label>
+                        <input type="text" class="form-control" id="webhookContentType" value="{{ settings.webhook.contentType if settings.webhook is not none else '' }}">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="updateSettings()">Update</button>
+        </form>
+    </div>
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div class="toast" id="updatedToast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <img src="..." class="rounded me-2" alt="...">
+                <strong class="me-auto">Updated settings</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                The settings have been updated successfully.
+            </div>
+        </div>
+    </div>
+    <script>
+        const popoverTriggerList = document.querySelectorAll('[data-bs-toggle="popover"]')
+        const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl, {html: true}))
+    </script>
+{% endblock %}

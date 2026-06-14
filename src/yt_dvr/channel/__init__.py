@@ -1,5 +1,7 @@
 from copy import copy
 from typing import Optional, cast, Callable, Any
+from urllib import request
+from urllib.error import URLError
 from yt_dlp import YoutubeDL, utils
 from yt_dvr.config import config, LOG, Retention
 import asyncio
@@ -265,6 +267,21 @@ class RecordingInfo:
             return ok
         except:
             return False
+        
+    def formatWebhook(self, format: str) -> str:
+        """
+        Formats a Webhook format string using the current recording info.
+
+        :param format: The format string to insert into
+        :returns: The string with the values inserted
+        """
+        return (format
+                .replace("${platform}", self.platform.replace("\\", "\\\\").replace('"', '\\"'))
+                .replace("${channel}", self.channel.replace("\\", "\\\\").replace('"', '\\"'))
+                .replace("${title}", self.title.replace("\\", "\\\\").replace('"', '\\"'))
+                .replace("${timestamp}", str(self.timestamp))
+                .replace("${date}", datetime.datetime.fromtimestamp(self.timestamp).isoformat())
+                .replace("${url}", self.url.replace("\\", "\\\\").replace('"', '\\"')))
 
     def _dump(self):
         return {
@@ -290,6 +307,11 @@ class RecordingInfo:
         finally:
             dl.close()
             self.in_progress = False
+            if config.webhook is not None:
+                try:
+                    with request.urlopen(request.Request(config.webhook.url, bytes(self.formatWebhook(config.webhook.endedFormat), "utf-8"), {"Content-Type": config.webhook.contentType if config.webhook.contentType is not None else "application/json", "User-Agent": "yt-dvr/1.0"}, method="POST")) as conn: pass
+                except URLError as e:
+                    LOG.error("Exception raised while sending webhook: %s", str(e))
             if not self._abort:
                 if not self.in_progress and self.filename.endswith(".ts") and config.remuxRecordings:
                     self.remux()

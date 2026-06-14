@@ -40,6 +40,11 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
 - `remuxFormat`: If remuxing is enabled, the (FFmpeg) format to remux to.
 - `logLevel`: The logging level as defined by [Python `logging`](https://docs.python.org/3/library/logging.html#logging-levels) (string)
 - `ffmpegPath`: The path to an FFmpeg binary to use, or `null` to find one on the system.
+- `webhook`: Options for sending status updates to a webhook. Either `null` or an object containing the following fields (all required unless otherwise specified):
+  - `url`: The URL to send POST requests to.
+  - `startedFormat`: The format string (see below) specifying the message to send on recording start.
+  - `endedFormat`: The format string (see below) specifying the message to send on recording end.
+  - `contentType`: (Optional) The `Content-Type` header to send, defaults to `application/json` if unset.
 - `channels`: An object containing channel names and options to record, with the following channel options (optional unless otherwise specified):
   - `url`: The URL to record (required)
     - For YouTube channels, this should be in the format `https://www.youtube.com/@<channel>/live`
@@ -49,6 +54,16 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `retention`: An alternate retention configuration for this channel only - if set it overrides the defaults completely
   - `ytdlParams`: An object containing parameters to pass to yt-dlp, in API format (see https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py)
     - In the web interface, this may also be regular flags which will be converted to API format on submit
+
+Webhook format strings replace any field below wrapped in `${}` with the described value:
+- `${platform}`: The platform of the channel
+- `${channel}`: The name of the channel
+- `${title}`: The title of the stream
+- `${timestamp}`: The UNIX timestamp when recording started
+- `${date}`: The ISO 8601-formatted date when recording started
+- `${url}`: The URL of the stream
+
+All values have backslashes and double quotes automatically escaped.
 
 These settings can be configured through the web interface.
 

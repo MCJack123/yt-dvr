@@ -28,6 +28,35 @@ class Retention:
             "size": self.size
         }
 
+class Webhook:
+    url: str
+    """
+    Format replaces any field below wrapped in `${}` with the described value:
+    - platform: The platform of the channel
+    - channel: The name of the channel
+    - title: The title of the stream
+    - timestamp: The UNIX timestamp when recording started
+    - date: The ISO 8601-formatted date when recording started
+    - url: The URL of the stream
+    """
+    startedFormat: str
+    endedFormat: str
+    contentType: Optional[str]
+
+    def __init__(self, obj: dict):
+        self.url = obj["url"]
+        self.startedFormat = obj["startedFormat"]
+        self.endedFormat = obj["endedFormat"]
+        self.contentType = obj["contentType"] if "contentType" in obj else None
+
+    def _dump(self) -> dict:
+        return {
+            "url": self.url,
+            "startedFormat": self.startedFormat,
+            "endedFormat": self.endedFormat,
+            "contentType": self.contentType
+        }
+
 class Config:
     saveDir: str
     serverPort: int
@@ -40,6 +69,7 @@ class Config:
     logLevel: str
     ffmpegPath: Optional[str]
     serverSubpath: str
+    webhook: Optional[Webhook]
 
     db: sqlite3.Connection
     lastScanTime: datetime.datetime
@@ -56,6 +86,7 @@ class Config:
         self.logLevel = "INFO"
         self.ffmpegPath = None
         self.serverSubpath = ""
+        self.webhook = None
 
     def load(self, path: str):
         try:
@@ -74,34 +105,23 @@ class Config:
             self.logLevel = dict["logLevel"] if "logLevel" in dict else "INFO"
             self.ffmpegPath = dict["ffmpegPath"] if "ffmpegPath" in dict else None
             self.serverSubpath = dict["serverSubpath"] if "serverSubpath" in dict else ""
+            self.webhook = Webhook(dict["webhook"]) if "webhook" in dict else None
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:
-        if partial:
-            return {
-                "saveDir": self.saveDir,
-                "serverPort": self.serverPort,
-                "defaultRetention": self.defaultRetention._dump(),
-                "globalRetention": self.globalRetention._dump(),
-                "pollInterval": self.pollInterval,
-                "remuxRecordings": self.remuxRecordings,
-                "remuxFormat": self.remuxFormat,
-                "logLevel": self.logLevel,
-                "ffmpegPath": self.ffmpegPath,
-                "serverSubpath": self.serverSubpath,
-            }
         return {
             "saveDir": self.saveDir,
             "serverPort": self.serverPort,
             "defaultRetention": self.defaultRetention._dump(),
             "globalRetention": self.globalRetention._dump(),
-            "channels": {k: channel._dump() for k, channel in self.channels.items()},
+            "channels": None if partial else {k: channel._dump() for k, channel in self.channels.items()},
             "pollInterval": self.pollInterval,
             "remuxRecordings": self.remuxRecordings,
             "remuxFormat": self.remuxFormat,
             "logLevel": self.logLevel,
             "ffmpegPath": self.ffmpegPath,
             "serverSubpath": self.serverSubpath,
+            "webhook": self.webhook._dump() if self.webhook is not None else None,
         }
 
     def dumps(self) -> str:

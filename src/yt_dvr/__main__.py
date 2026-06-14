@@ -1,7 +1,10 @@
 from typing import Any
+from urllib import request
+from urllib.error import URLError
 from yt_dvr.config import LOG, config
 import asyncio
 import datetime
+import http.client
 import logging
 import multiprocessing
 import os
@@ -118,11 +121,16 @@ async def main():
                         if ok:
                             LOG.info(f"Starting recording for channel {name}")
                             rec = await channel.download(name, arg)
+                            if config.webhook is not None:
+                                try:
+                                    with request.urlopen(request.Request(config.webhook.url, bytes(rec.formatWebhook(config.webhook.startedFormat), "utf-8"), {"Content-Type": config.webhook.contentType if config.webhook.contentType is not None else "application/json", "User-Agent": "yt-dvr/1.0"}, method="POST")) as conn: pass
+                                except URLError as e:
+                                    LOG.error("Exception raised while sending webhook: %s", str(e))
                             channels.recordings.append(rec)
                         else:
                             LOG.debug(f"Stream {name} is not live")
                     except BaseException as e:
-                        LOG.error("Exception raised while checking:", e)
+                        LOG.error("Exception raised while checking: %s", str(e))
             LOG.debug("Done checking")
             config.lastScanTime = datetime.datetime.now()
             try: await asyncio.wait_for(shutdown_event.wait(), timeout=config.pollInterval)

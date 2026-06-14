@@ -89,7 +89,7 @@
                                 <label class="form-check-label" for="getChat">Get chat?</label>
                             </div>
                             <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="retention" {{ 'checked' if contents.retention else '' }}" data-bs-toggle="collapse" data-bs-target="#retentionCollapse">
+                                <input type="checkbox" class="form-check-input" id="retention" {{ 'checked' if contents.retention else '' }} data-bs-toggle="collapse" data-bs-target="#retentionCollapse">
                                 <label class="form-check-label" for="retention">Override retention policy</label>
                             </div>
                             <div class="mb-3 {{ '' if contents.retention else 'collapse' }}" id="retentionCollapse">

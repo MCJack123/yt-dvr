@@ -14,7 +14,7 @@ import yt_dvr.config as config
 LOG = logging.getLogger("yt-dvr")
 
 if hasattr(sys, "_MEIPASS"): app = Quart("yt-dvr", template_folder=sys._MEIPASS + "/templates") # type: ignore
-else: app = Quart("yt-dvr")
+else: app = Quart("yt-dvr", template_folder="yt_dvr/templates")
 app.logger.setLevel(logging.DEBUG)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
@@ -168,6 +168,16 @@ async def api_settings():
             if "time" in data["globalRetention"] and data["globalRetention"]["time"] is not None and type(data["globalRetention"]["time"]) != int: return ({"error": "'globalRetention.time' not an integer"}, 400)
             if "size" in data["globalRetention"] and data["globalRetention"]["size"] is not None and type(data["globalRetention"]["size"]) != int: return ({"error": "'globalRetention.size' not an integer"}, 400)
             config.config.globalRetention = config.Retention(data["globalRetention"])
+        if "webhook" in data:
+            if type(data["webhook"]) == dict:
+                w = data["webhook"]
+                if not ("url" in w) or type(w["url"]) != str: return ({"error": "'webhook.url' not a string"}, 400)
+                if not ("startedFormat" in w) or type(w["startedFormat"]) != str: return ({"error": "'webhook.startedFormat' not a string"}, 400)
+                if not ("endedFormat" in w) or type(w["endedFormat"]) != str: return ({"error": "'webhook.endedFormat' not a string"}, 400)
+                if "contentType" in w and type(w["contentType"]) != str: return ({"error": "'webhook.contentType' not a string"}, 400)
+                config.config.webhook = config.Webhook(w)
+            elif data["webhook"] == None: config.config.webhook = None
+            else: return ({"error": "'webhook' not an object"}, 400)
         config.config.save(os.getenv("YTDVR_CONFIG") or "ytdvr_config.json")
         return (config.config._dump(True), 200)
     else: return ({"error": "Invalid request method"}, 405)
