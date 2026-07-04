@@ -191,6 +191,7 @@ class RecordingInfo:
             if not os.path.exists(input):
                 if os.path.exists(input + ".part"): input += ".part"
                 elif os.path.exists(input + ".mp4"): input += ".mp4"
+                elif os.path.exists(input + ".mp4.part"): input += ".mp4.part"
                 else:
                     LOG.error("Could not find file or partial stream at " + input + ", skipping remux")
                     return
@@ -260,7 +261,9 @@ class RecordingInfo:
                 path = config.saveDir + "/" + file.replace(".ts", ".mp4")
             elif os.path.isfile(config.saveDir + "/" + file.replace(".ts", ".mp4.part")):
                 path = config.saveDir + "/" + file.replace(".ts", ".mp4.part")
-            else: return False
+            elif os.path.isfile(config.saveDir + file + ".mp4.part"):
+                path = config.saveDir + "/" + file + ".mp4.part"
+            else: return True
             size = os.path.getsize(path)
             ok = self._healthcheck_lastSize == 0 or size > self._healthcheck_lastSize
             self._healthcheck_lastSize = size

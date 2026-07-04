@@ -105,7 +105,7 @@ class Config:
             self.logLevel = dict["logLevel"] if "logLevel" in dict else "INFO"
             self.ffmpegPath = dict["ffmpegPath"] if "ffmpegPath" in dict else None
             self.serverSubpath = dict["serverSubpath"] if "serverSubpath" in dict else ""
-            self.webhook = Webhook(dict["webhook"]) if "webhook" in dict else None
+            self.webhook = Webhook(dict["webhook"]) if "webhook" in dict and dict["webhook"] is not None else None
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:

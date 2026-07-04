@@ -41,3 +41,6 @@ include = ["yt_dvr*"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+
+[tool.setuptools.package-data]
+yt_dvr = ["templates/*.html"]

@@ -14,7 +14,7 @@ import yt_dvr.config as config
 LOG = logging.getLogger("yt-dvr")
 
 if hasattr(sys, "_MEIPASS"): app = Quart("yt-dvr", template_folder=sys._MEIPASS + "/templates") # type: ignore
-else: app = Quart("yt-dvr", template_folder="yt_dvr/templates")
+else: app = Quart(__name__, template_folder="templates")
 app.logger.setLevel(logging.DEBUG)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
