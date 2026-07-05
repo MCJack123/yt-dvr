@@ -7,9 +7,7 @@
             var video = document.getElementById('video');
             // TODO: fix URL replacement
             var videoSrc = '{{ urlencode(info.path).replace(".mp4", ".m3u8").replace(".ts", ".m3u8").replace(".webm", ".m3u8").replace(".mkv", ".m3u8") }}';
-            if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = videoSrc;
-            } else if (Hls.isSupported()) {
+            if (Hls.isSupported()) {
                 var hls = new Hls({
                     "maxMaxBufferLength": 1,
                     "backBufferLength": 1,
@@ -17,6 +15,8 @@
                 });
                 hls.loadSource(videoSrc);
                 hls.attachMedia(video);
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = videoSrc;
             }
         }
 

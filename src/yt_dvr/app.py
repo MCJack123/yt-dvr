@@ -1,6 +1,7 @@
+from io import BytesIO
 from quart import Quart, request, send_file, render_template
 from typing import Awaitable, Callable, Any
-from urllib.parse import quote
+from urllib.parse import quote, parse_qs
 import datetime
 import json
 import logging
@@ -63,6 +64,13 @@ async def assets(subpath):
 @app.route("/files/<path:subpath>")
 async def file(subpath: str):
     if os.path.isfile(config.config.saveDir + "/" + subpath):
+        if request.query_string.find(b"start=") != None and request.query_string.find(b"len=") != None:
+            query = parse_qs(request.query_string)
+            if b"start" in query and b"len" in query:
+                with open(config.config.saveDir + "/" + subpath, "rb") as file:
+                    file.seek(int(query[b"start"][0]))
+                    data = file.read(int(query[b"len"][0]))
+                    return await send_file(BytesIO(data), cache_timeout=14400, mimetype="video/mpeg-ts", conditional=True)
         if subpath.endswith(".part"): return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=0, mimetype="video/mpeg-ts", conditional=True)
         else: return await send_file(config.config.saveDir + "/" + subpath, cache_timeout=86400, mimetype="video/mpeg-ts" if subpath.endswith(".ts") else None, conditional=True)
     else: return (await render_template("404.html", message="The requested file does not exist.", basePath=config.config.serverSubpath), 404)
@@ -85,8 +93,10 @@ async def file_m3u8(channel, file):
             if video.channel == channel and (video.filename == channel + "/" + path or video.filename + ".part" == channel + "/" + path):
                 if video.in_progress:
                     duration = str(int(datetime.datetime.now().timestamp()) - video.timestamp)
+                    await video._initTSState()
+                if video._tsstate is not None: 
+                    return await send_file(BytesIO(bytes(video._tsstate.generateM3U8(duration, path), "utf-8")), mimetype="application/vnd.apple.mpegurl", cache_timeout=0, conditional=True)
                 break
-    path = config.config.serverSubpath + path
     if path.endswith(".part"): return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:" + duration + "\n" + quote(path) + "\n"
     else: return "#EXTM3U\n#EXT-X-TARGETDURATION:" + duration + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:" + duration + "\n" + quote(path) + "\n#EXT-X-ENDLIST\n"
 

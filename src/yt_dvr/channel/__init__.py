@@ -2,6 +2,7 @@ from copy import copy
 from typing import Optional, cast, Callable, Any
 from urllib import request
 from urllib.error import URLError
+from urllib.parse import quote
 from yt_dlp import YoutubeDL, utils
 from yt_dvr.config import config, LOG, Retention
 import asyncio
@@ -67,6 +68,56 @@ def get_chat_recorder(loop: asyncio.EventLoop, platform: str, url: str, filename
         return rumble.RumbleChatRecorder(info, filename)
     return None
 
+class TSState:
+    """
+    A class holding information for splitting an MPEG-TS stream for transit.
+    """
+    filename: str
+    head: int
+    chunks: list[tuple[int, float]]
+    running: bool
+    video_pid: int | None
+    start_pcr: int
+    current_pcr: int
+
+    def __init__(self, filename: str):
+        self.filename = filename
+        self.head = 0
+        self.chunks = []
+        self.running = True
+        self.video_pid = None
+        self.start_pcr = 0
+        self.current_pcr = 0
+
+    async def run(self):
+        while self.running:
+            try:
+                with open(self.filename, "rb") as file:
+                    file.seek(self.head)
+                    while True:
+                        while file.peek(1)[0] != 0x47 and len(file.peek(1)) >= 1: file.seek(1, os.SEEK_CUR) # look for 'G' byte
+                        packet = file.read(188)
+                        if len(packet) < 188: break
+                        pid = (packet[1] & 0x1F) << 8 | packet[2]
+                        if (packet[3] & 0x20) != 0 and packet[4] > 0 and (packet[5] & 0x10) != 0:
+                            pcr = (packet[6] << 25 | packet[7] << 17 | packet[8] << 9 | packet[9] << 1 | (packet[10] & 0x80) >> 7) * 300 + ((packet[10] & 0x01) << 8 | packet[11])
+                            if self.start_pcr == 0:
+                                self.start_pcr = pcr
+                                self.current_pcr = pcr
+                            if pcr > self.current_pcr and pcr < self.current_pcr + 10000000: self.current_pcr = pcr
+                        if file.tell() - 188 - self.head >= 1048576 and (packet[3] & 0x20) != 0 and packet[4] > 0 and (packet[5] & 0x40) != 0: # adaptation field present, RAI set
+                        #if file.tell() - 188 - self.head >= 1048576 and (packet[1] & 0x40) != 0 and (pid == 0x0011 or pid == 0x0000): # PUSI set, PID is SDT or PAT
+                            self.chunks.append((self.head, (self.current_pcr - self.start_pcr) / 27000000.0))
+                            self.head = file.tell() - 188
+                    self.head = file.tell()
+            except: pass
+            await asyncio.sleep(1)
+
+    def generateM3U8(self, duration: str, path: str) -> str:
+        retval = "#EXTM3U\n#EXT-X-TARGETDURATION:" + str((self.current_pcr - self.start_pcr) / 27000000.0) + "\n#EXT-X-VERSION:3\n#EXT-X-MEDIA-SEQUENCE:0\n"
+        for i, pos in enumerate(self.chunks): retval += "#EXTINF:" + str((self.chunks[i+1][1] if i + 1 < len(self.chunks) else self.current_pcr / 27000000.0) - pos[1]) + "\n" + quote(path) + "?start=" + str(pos[0]) + "&len=" + str((self.chunks[i+1][0] if i + 1 < len(self.chunks) else self.head) - pos[0]) + "\n"
+        return retval
+
 class RecordingInfo:
     """
     Information about a live stream. This is derived by platforms to implement
@@ -86,6 +137,7 @@ class RecordingInfo:
     _stop: bool
     _abort: bool
     _healthcheck_lastSize: int
+    _tsstate: Optional[TSState]
 
     def __init__(self, platform: str, channel: str, title: str, timestamp: int, url: str, filename: str, chat_filename: Optional[str], in_progress: bool):
         """
@@ -112,6 +164,7 @@ class RecordingInfo:
         self._stop = False
         self._abort = False
         self._healthcheck_lastSize = 0
+        self._tsstate = None
 
     @classmethod
     def _create_ytdl(cls, loop: asyncio.EventLoop, dl: YoutubeDL, info: dict, getChat: bool, platform: str, channel: str, title: str):
@@ -315,11 +368,31 @@ class RecordingInfo:
                     with request.urlopen(request.Request(config.webhook.url, bytes(self.formatWebhook(config.webhook.endedFormat), "utf-8"), {"Content-Type": config.webhook.contentType if config.webhook.contentType is not None else "application/json", "User-Agent": "yt-dvr/1.0"}, method="POST")) as conn: pass
                 except URLError as e:
                     LOG.error("Exception raised while sending webhook: %s", str(e))
+            if self._tsstate is not None: self._tsstate.running = False
             if not self._abort:
                 if not self.in_progress and self.filename.endswith(".ts") and config.remuxRecordings:
                     self.remux()
                 loop.call_soon_threadsafe(self.update)
             self._ytdlProcess = None
+
+    async def _initTSState(self):
+        if self._tsstate is not None: return
+        file = self.filename
+        path = ""
+        if os.path.isfile(config.saveDir + "/" + file):
+            path = config.saveDir + "/" + file
+        elif os.path.isfile(config.saveDir + "/" + file + ".part"):
+            path = config.saveDir + "/" + file + ".part"
+        elif os.path.isfile(config.saveDir + "/" + file.replace(".ts", ".mp4")):
+            path = config.saveDir + "/" + file.replace(".ts", ".mp4")
+        elif os.path.isfile(config.saveDir + "/" + file.replace(".ts", ".mp4.part")):
+            path = config.saveDir + "/" + file.replace(".ts", ".mp4.part")
+        elif os.path.isfile(config.saveDir + file + ".mp4.part"):
+            path = config.saveDir + "/" + file + ".mp4.part"
+        else: return
+        self._tsstate = TSState(path)
+        asyncio.create_task(self._tsstate.run())
+        await asyncio.sleep(0.5)
 
 class Channel:
     """
