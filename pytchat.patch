@@ -1,0 +1,30 @@
+diff -rEw --unified --exclude __pycache__ pytchat-master/core_async/livechat.py pytchat/core_async/livechat.py
+--- pytchat-master/core_async/livechat.py  2021-07-24 07:00:30.000000000 -0400
++++ pytchat/core_async/livechat.py         2026-02-26 18:27:33.967033669 -0500
+@@ -154,7 +154,7 @@
+         create and start _listen loop.
+         """
+         if not self.continuation:
+-            channel_id = await util.get_channelid_async(self._client, self._video_id)
++            channel_id = await util.get_channelid_async(httpx.AsyncClient(http2=True), self._video_id)
+             self.continuation = liveparam.getparam(
+                 self._video_id,
+                 channel_id,
+@@ -172,7 +172,7 @@
+             parameter for next chat data
+         '''
+         try:
+-            async with self._client as client:
++            async with httpx.AsyncClient(http2=True) as client:
+                 while(continuation and self._is_alive):
+                     continuation = await self._check_pause(continuation)
+                     contents = await self._get_contents(continuation, client, headers) #Q#
+@@ -217,7 +217,7 @@
+             '''
+             self._pauser.put_nowait(None)
+             if not self._is_replay:
+-                async with self._client as client:
++                async with httpx.AsyncClient(http2=True) as client:
+                     channel_id = await util.get_channelid_async(client, self.video_id)
+                     continuation = liveparam.getparam(self._video_id, 
+                                     channel_id,
