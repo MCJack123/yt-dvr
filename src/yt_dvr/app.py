@@ -270,6 +270,13 @@ async def api_channel(channel):
 async def api_channel_videos(channel):
     return [info._dump() for info in channels.recordings if info.channel == channel]
 
+@app.route("/api/channels/<channel>/live")
+async def api_channel_live(channel):
+    for info in channels.recordings:
+        if info.channel == channel and info.in_progress:
+            return info._dump()
+    return ({"error": "Channel not live"}, 404)
+
 @app.route("/api/channels/<channel>/<int:timestamp>", methods=["GET", "DELETE"])
 async def api_video(channel, timestamp):
     if request.method == "GET":
