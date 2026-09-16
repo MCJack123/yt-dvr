@@ -1,11 +1,3 @@
-# Add to compose.yml for healthcheck:
-#   healthcheck:
-#     test: curl -f http://localhost:6334/api/healthcheck || exit 1
-#     interval: 30s
-#     timeout: 10s
-#     retries: 5
-#     start_period: 30s
-
 FROM python:3.14-trixie
 
 WORKDIR /usr/src/app
@@ -30,3 +22,5 @@ EXPOSE 6334
 ENV YTDVR_DB=files/ytdvr.db
 ENV YTDVR_CONFIG=files/ytdvr_config.json
 CMD [ "python", "-m", "yt_dvr" ]
+HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
+  CMD curl -f http://localhost:6334/api/healthcheck || exit 1

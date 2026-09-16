@@ -12,7 +12,7 @@
             }
         </style>
 {% endblock %}
-{% block format_info %}This is the direct data that is sent to the Webhook (usually a JSON string). The format replaces any field below wrapped in <code>${}</code> with the described value:<ul><li><code>${platform}</code>: The platform of the channel</li><li><code>${channel}</code>: The name of the channel</li><li><code>${title}</code>: The title of the stream</li><li><code>${timestamp}</code>: The UNIX timestamp when recording started</li><li><code>${date}</code>: The ISO 8601-formatted date when recording started</li><li><code>${url}</code>: The URL of the stream</li></ul>Quotes and backslashes in any value are automatically escaped.{% endblock %}
+{% block format_info %}{% raw %}This is the direct data that is sent to the Webhook (usually a JSON string). The format replaces any field below wrapped in <code>{{ }}</code> with the described value:<ul><li><code>{{ platform }}</code>: The platform of the channel</li><li><code>{{ channel }}</code>: The name of the channel</li><li><code>{{ title }}</code>: The title of the stream</li><li><code>{{ timestamp }}</code>: The UNIX timestamp when recording started</li><li><code>{{ date }}</code>: The ISO 8601-formatted date when recording started</li><li><code>{{ url }}</code>: The URL of the stream</li><li><code>{{ filename }}</code>: The name of the file recorded on disk</li></ul>Quotes and backslashes in any value are automatically escaped.<br>The format string is processed by the <a href='https://jinja.palletsprojects.com/en/stable/templates/'>Jinja</a> engine - see its docs for more advanced formatting.{% endraw %}{% endblock %}
 {% block content %}
     <script>
         function updateSettings() {
@@ -70,8 +70,8 @@
         }
 
         function discord_template() {
-            document.getElementById("webhookStartedFormat").value = '{"content": "Recording started for ${channel} (${platform}) - ${title}"}';
-            document.getElementById("webhookEndedFormat").value = '{"content": "Recording stopped for ${channel} (${platform}) - ${title}"}';
+            document.getElementById("webhookStartedFormat").value = '{"content": "Recording started for {{ channel }} ({{ platform }}) - {{ title }}"}';
+            document.getElementById("webhookEndedFormat").value = '{"content": "Recording stopped for {{ channel }} ({{ platform }}) - {{ title }}"}';
             document.getElementById("webhookContentType").value = "application/json; charset=utf-8";
         }
     </script>

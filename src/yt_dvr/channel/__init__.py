@@ -1,4 +1,5 @@
 from copy import copy
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 from typing import Optional, cast, Callable, Any
 from urllib import request
 from urllib.error import URLError
@@ -331,13 +332,20 @@ class RecordingInfo:
         :param format: The format string to insert into
         :returns: The string with the values inserted
         """
-        return (format
-                .replace("${platform}", self.platform.replace("\\", "\\\\").replace('"', '\\"'))
-                .replace("${channel}", self.channel.replace("\\", "\\\\").replace('"', '\\"'))
-                .replace("${title}", self.title.replace("\\", "\\\\").replace('"', '\\"'))
-                .replace("${timestamp}", str(self.timestamp))
-                .replace("${date}", datetime.datetime.fromtimestamp(self.timestamp).isoformat())
-                .replace("${url}", self.url.replace("\\", "\\\\").replace('"', '\\"')))
+        try:
+            return ImmutableSandboxedEnvironment().from_string(format).render(
+                platform=self.platform.replace("\\", "\\\\").replace('"', '\\"'),
+                channel=self.channel.replace("\\", "\\\\").replace('"', '\\"'),
+                title=self.title.replace("\\", "\\\\").replace('"', '\\"'),
+                timestamp=str(self.timestamp),
+                date=datetime.datetime.fromtimestamp(self.timestamp).isoformat(),
+                url=self.url.replace("\\", "\\\\").replace('"', '\\"'),
+                filename=self.filename.replace("\\", "\\\\").replace('"', '\\"')
+            )
+        except Exception as e:
+            LOG.error("Exception raised in format string:")
+            LOG.error(e)
+            return ""
 
     def _dump(self):
         return {
@@ -368,6 +376,7 @@ class RecordingInfo:
                     with request.urlopen(request.Request(config.webhook.url, bytes(self.formatWebhook(config.webhook.endedFormat), "utf-8"), {"Content-Type": config.webhook.contentType if config.webhook.contentType is not None else "application/json", "User-Agent": "yt-dvr/1.0"}, method="POST")) as conn: pass
                 except URLError as e:
                     LOG.error("Exception raised while sending webhook: %s", str(e))
+                    LOG.error("Formatted string: " + self.formatWebhook(config.webhook.endedFormat))
             if self._tsstate is not None: self._tsstate.running = False
             if not self._abort:
                 if not self.in_progress and self.filename.endswith(".ts") and config.remuxRecordings:

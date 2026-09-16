@@ -55,15 +55,16 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `ytdlParams`: An object containing parameters to pass to yt-dlp, in API format (see https://github.com/yt-dlp/yt-dlp/blob/master/devscripts/cli_to_api.py)
     - In the web interface, this may also be regular flags which will be converted to API format on submit
 
-Webhook format strings replace any field below wrapped in `${}` with the described value:
-- `${platform}`: The platform of the channel
-- `${channel}`: The name of the channel
-- `${title}`: The title of the stream
-- `${timestamp}`: The UNIX timestamp when recording started
-- `${date}`: The ISO 8601-formatted date when recording started
-- `${url}`: The URL of the stream
+Webhook format strings use the [Jinja](https://jinja.palletsprojects.com/en/stable/templates/) templating engine. In short, it will replace any field below wrapped in `{{ }}` with the described value:
+- `{{ platform }}`: The platform of the channel
+- `{{ channel }}`: The name of the channel
+- `{{ title }}`: The title of the stream
+- `{{ timestamp }}`: The UNIX timestamp when recording started
+- `{{ date }}`: The ISO 8601-formatted date when recording started
+- `{{ url }}`: The URL of the stream
+- `{{ filename }}`: The name of the file recorded on disk
 
-All values have backslashes and double quotes automatically escaped.
+All values have backslashes and double quotes automatically escaped. See the Jinja docs for information on all of the formatting options available.
 
 These settings can be configured through the web interface.
 
@@ -80,7 +81,7 @@ A Dockerfile is also provided for use in a Docker container. Use the `/api/healt
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
 
 ```sh
-pyinstaller src/yt_dvr/__main__.py -F -p src --add-data templates:templates --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi --collect-all kickpython --collect-all dateutil --collect-all pytchat --collect-all ld_eventsource
+pyinstaller src/yt_dvr/__main__.py -F -p src --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi --collect-all kickpython --collect-all dateutil --collect-all pytchat --collect-all ld_eventsource
 ```
 
 ## License

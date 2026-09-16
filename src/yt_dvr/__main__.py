@@ -126,6 +126,7 @@ async def main():
                                     with request.urlopen(request.Request(config.webhook.url, bytes(rec.formatWebhook(config.webhook.startedFormat), "utf-8"), {"Content-Type": config.webhook.contentType if config.webhook.contentType is not None else "application/json", "User-Agent": "yt-dvr/1.0"}, method="POST")) as conn: pass
                                 except URLError as e:
                                     LOG.error("Exception raised while sending webhook: %s", str(e))
+                                    LOG.error("Formatted string: " + rec.formatWebhook(config.webhook.startedFormat))
                             channels.recordings.append(rec)
                         else:
                             LOG.debug(f"Stream {name} is not live")
