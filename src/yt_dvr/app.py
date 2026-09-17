@@ -86,6 +86,8 @@ async def file_m3u8(channel, file):
         path = file + ".mp4"
     elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".mp4.part"):
         path = file + ".mp4.part"
+    elif os.path.isfile(config.config.saveDir + "/" + channel + "/" + file + ".ts.mp4.part"):
+        path = file + ".ts.mp4.part"
     else: return (await render_template("404.html", message="The requested file does not exist.", basePath=config.config.serverSubpath), 404)
     duration = "10"
     if not path.endswith(".mp4"):
@@ -311,4 +313,4 @@ async def api_healthcheck():
 
 def run(port: int | None = None, shutdown: Callable[..., Awaitable[Any | None]] | None = None):
     LOG.info("Starting yt-dvr web interface")
-    return app.run_task(port=port if port is not None else 6334, shutdown_trigger=shutdown)
+    return app.run_task(host="0.0.0.0", port=port if port is not None else 6334, shutdown_trigger=shutdown)
