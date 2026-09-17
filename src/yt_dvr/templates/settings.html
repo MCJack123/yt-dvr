@@ -70,8 +70,10 @@
         }
 
         function discord_template() {
+            {% raw %}
             document.getElementById("webhookStartedFormat").value = '{"content": "Recording started for {{ channel }} ({{ platform }}) - {{ title }}"}';
             document.getElementById("webhookEndedFormat").value = '{"content": "Recording stopped for {{ channel }} ({{ platform }}) - {{ title }}"}';
+            {% endraw %}
             document.getElementById("webhookContentType").value = "application/json; charset=utf-8";
         }
     </script>
