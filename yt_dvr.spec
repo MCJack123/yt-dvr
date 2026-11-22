@@ -3,7 +3,18 @@ from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_all
 
 datas = [('src\\yt_dvr\\templates', 'templates')]
-binaries = [('build\\ffmpeg.exe', '.'), ('build\\deno.exe', '.')]
+binaries = [
+    ('..\\build\\ffmpeg.exe', '.'),
+    ('..\\build\\ffprobe.exe', '.'),
+    ('..\\build\\avcodec-63.dll', '.'),
+    ('..\\build\\avdevice-63.dll', '.'),
+    ('..\\build\\avfilter-12.dll', '.'),
+    ('..\\build\\avformat-63.dll', '.'),
+    ('..\\build\\avutil-61.dll', '.'),
+    ('..\\build\\swresample-7.dll', '.'),
+    ('..\\build\\swscale-10.dll', '.'),
+    ('..\\build\\deno.exe', '.')
+]
 hiddenimports = []
 hiddenimports += collect_submodules('yt_dvr[kick,youtube,rumble]')
 hiddenimports += collect_submodules('yt_dvr.channel.kick')

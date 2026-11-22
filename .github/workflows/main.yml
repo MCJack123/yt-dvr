@@ -23,8 +23,6 @@ jobs:
   pyinstaller-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-
       - name: Download ffmpeg and deno
         run: |
           Invoke-WebRequest -Uri https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip -OutFile ffmpeg.zip
