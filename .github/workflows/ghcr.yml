@@ -9,6 +9,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - "src/**"
+      - "pyproject.toml"
+      - ".github/workflows/ghcr.yml"
+      - "Dockerfile"
 
 jobs:
   docker_publish:
