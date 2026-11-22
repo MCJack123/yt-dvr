@@ -19,8 +19,12 @@ import threading
 
 LOG = logging.getLogger("yt-dvr")
 
-if hasattr(sys, "_MEIPASS"): FFMPEG_PATH = sys._MEIPASS + "/ffmpeg.exe" # type: ignore
-else: FFMPEG_PATH = "ffmpeg"
+if hasattr(sys, "_MEIPASS"):
+    FFMPEG_PATH = sys._MEIPASS + "/ffmpeg.exe" # type: ignore
+    FFPROBE_PATH = sys._MEIPASS + "/ffprobe.exe" # type: ignore
+else:
+    FFMPEG_PATH = "ffmpeg"
+    FFPROBE_PATH = "ffprobe"
 
 def ctype_async_raise(target_tid, exception):
     ret = ctypes.pythonapi.PyThreadState_SetAsyncExc(ctypes.c_long(target_tid), ctypes.py_object(exception))
@@ -249,9 +253,44 @@ class RecordingInfo:
                 else:
                     LOG.error("Could not find file or partial stream at " + input + ", skipping remux")
                     return
-            (ffmpeg
-                .input(filename=input)
-                .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options={"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True})).run(cmd=config.ffmpegPath if config.ffmpegPath is not None else FFMPEG_PATH)
+            if config.remuxCodecs is not None and not config.remuxCodecs.isEmpty():
+                inputInfo = ffmpeg.probe(input, show_streams=True, cmd=FFPROBE_PATH)
+                videoCodec: str = "copy"
+                videoBitrate: Optional[int] = None
+                audioCodec: str = "copy"
+                audioBitrate: Optional[int] = None
+                for stream in inputInfo["streams"]:
+                    if stream["codec_type"] == "video":
+                        if config.remuxCodecs.videoCodec is not None: videoCodec = config.remuxCodecs.videoCodec
+                        elif config.remuxCodecs.videoBitrate is not None: videoCodec = stream["codec_name"]
+                        else: videoCodec = "copy"
+                        if config.remuxCodecs.videoBitrate is not None: videoBitrate = config.remuxCodecs.videoBitrate
+                        elif config.remuxCodecs.videoCodec is not None:
+                            if "bit_rate" in stream and stream["bit_rate"] is not None: videoBitrate = int(stream["bit_rate"]) // 128
+                            elif "bit_rate" in inputInfo["format"] and inputInfo["format"]["bit_rate"] is not None: videoBitrate = int(inputInfo["format"]["bit_rate"]) // 128
+                            else: videoBitrate = int(float(os.path.getsize(input)) / float(stream["duration"]) / 128)
+                        else: videoBitrate = 0
+                    elif stream["codec_type"] == "audio":
+                        if config.remuxCodecs.audioCodec is not None: audioCodec = config.remuxCodecs.audioCodec
+                        elif config.remuxCodecs.audioBitrate is not None: audioCodec = stream["codec_name"]
+                        else: audioCodec = "copy"
+                        if config.remuxCodecs.audioBitrate is not None: audioBitrate = config.remuxCodecs.audioBitrate
+                        elif config.remuxCodecs.audioCodec is not None and "bit_rate" in stream: audioBitrate = int(stream["bit_rate"]) // 128
+                        else: audioBitrate = 160 # temp
+                if videoBitrate is not None and videoBitrate < 64:
+                    opts = {k: v for k, v in config.remuxOptions.items()}
+                    opts["crf"] = videoBitrate
+                    (ffmpeg
+                        .input(filename=input)
+                        .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, vcodec=videoCodec, acodec=audioCodec, ab=audioBitrate, extra_options=opts)).run(cmd=config.ffmpegPath if config.ffmpegPath is not None else FFMPEG_PATH)
+                else:
+                    (ffmpeg
+                        .input(filename=input)
+                        .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, vcodec=videoCodec, b=videoBitrate, acodec=audioCodec, ab=audioBitrate, extra_options=config.remuxOptions)).run(cmd=config.ffmpegPath if config.ffmpegPath is not None else FFMPEG_PATH)
+            else:
+                (ffmpeg
+                    .input(filename=input)
+                    .output(filename=config.saveDir + "/" + newname, f=config.remuxFormat, codec="copy", extra_options=config.remuxOptions)).run(cmd=config.ffmpegPath if config.ffmpegPath is not None else FFMPEG_PATH)
             try: os.remove(input)
             except: pass
             self.filename = newname

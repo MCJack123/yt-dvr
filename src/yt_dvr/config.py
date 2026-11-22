@@ -1,4 +1,4 @@
-from typing import Optional, cast, TYPE_CHECKING
+from typing import Optional, Any, cast, TYPE_CHECKING
 import datetime
 import importlib
 import json
@@ -56,6 +56,29 @@ class Webhook:
             "endedFormat": self.endedFormat,
             "contentType": self.contentType
         }
+    
+class RemuxCodecs:
+    videoCodec: Optional[str] # if None, will be same as source if bitrate specified, "copy" if no bitrate specified
+    videoBitrate: Optional[int] # crf assumed <= 63, abr assumed >= 64 (kbps), None will copy source bitrate
+    audioCodec: Optional[str] # if None, will be same as source if bitrate specified, "copy" if no bitrate specified
+    audioBitrate: Optional[int] # None will copy source bitrate
+
+    def __init__(self, obj: dict):
+        self.videoCodec = obj["videoCodec"] if "videoCodec" in obj else None
+        self.videoBitrate = obj["videoBitrate"] if "videoBitrate" in obj else None
+        self.audioCodec = obj["audioCodec"] if "audioCodec" in obj else None
+        self.audioBitrate = obj["audioBitrate"] if "audioBitrate" in obj else None
+
+    def _dump(self) -> dict:
+        return {
+            "videoCodec": self.videoCodec,
+            "videoBitrate": self.videoBitrate,
+            "audioCodec": self.audioCodec,
+            "audioBitrate": self.audioBitrate,
+        }
+    
+    def isEmpty(self):
+        return self.videoCodec is None and self.videoBitrate is None and self.audioCodec is None and self.audioBitrate is None
 
 class Config:
     saveDir: str
@@ -70,6 +93,8 @@ class Config:
     ffmpegPath: Optional[str]
     serverSubpath: str
     webhook: Optional[Webhook]
+    remuxOptions: dict[str, Any]
+    remuxCodecs: Optional[RemuxCodecs]
 
     db: sqlite3.Connection
     lastScanTime: datetime.datetime
@@ -87,6 +112,8 @@ class Config:
         self.ffmpegPath = None
         self.serverSubpath = ""
         self.webhook = None
+        self.remuxOptions = {"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True}
+        self.remuxCodecs = None
 
     def load(self, path: str):
         try:
@@ -106,6 +133,8 @@ class Config:
             self.ffmpegPath = dict["ffmpegPath"] if "ffmpegPath" in dict else None
             self.serverSubpath = dict["serverSubpath"] if "serverSubpath" in dict else ""
             self.webhook = Webhook(dict["webhook"]) if "webhook" in dict and dict["webhook"] is not None else None
+            self.remuxOptions = dict["remuxOptions"] if "remuxOptions" in dict and dict["remuxOptions"] is not None else {"movflags": "+faststart", "y": True, "loglevel": config.logLevel.lower(), "hide_banner": True}
+            self.remuxCodecs = RemuxCodecs(dict["remuxCodecs"]) if "remuxCodecs" in dict and dict["remuxCodecs"] is not None else None
         except FileNotFoundError: pass
 
     def _dump(self, partial: bool = False) -> dict:
@@ -122,6 +151,8 @@ class Config:
             "ffmpegPath": self.ffmpegPath,
             "serverSubpath": self.serverSubpath,
             "webhook": self.webhook._dump() if self.webhook is not None else None,
+            "remuxOptions": self.remuxOptions,
+            "remuxCodecs": self.remuxCodecs._dump() if self.remuxCodecs is not None else None,
         }
 
     def dumps(self) -> str:

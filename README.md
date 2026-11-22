@@ -45,6 +45,12 @@ yt-dvr is configured with a JSON file at `$YTDVR_CONFIG` (default `ytdvr_config.
   - `startedFormat`: The format string (see below) specifying the message to send on recording start.
   - `endedFormat`: The format string (see below) specifying the message to send on recording end.
   - `contentType`: (Optional) The `Content-Type` header to send, defaults to `application/json` if unset.
+- `remuxOptions`: A dictionary of extra options to pass to FFmpeg when remuxing. Defaults to the equivalent of `-movflags +faststart -y -loglevel ${config.logLevel} -hide_banner`.
+- `remuxCodecs`: If present, the recording will be re-encoded during the remux step. This is a dictionary with the following options (all optional):
+  - `videoCodec`: The codec for the video stream. If missing, will be same as source if a bitrate is specified, otherwise the stream will be copied without re-encoding.
+  - `videoBitrate`: The bitrate for the video stream, in kbps or CRF if <= 63. If missing, will be set to source average bitrate.
+  - `audioCodec`: The codec for the audio stream. If missing, will be same as source if a bitrate is specified, otherwise the stream will be copied without re-encoding.
+  - `audioBitrate`: The bitrate for the audio stream, in kbps. If missing, will be set to source bitrate.
 - `channels`: An object containing channel names and options to record, with the following channel options (optional unless otherwise specified):
   - `url`: The URL to record (required)
     - For YouTube channels, this should be in the format `https://www.youtube.com/@<channel>/live`
