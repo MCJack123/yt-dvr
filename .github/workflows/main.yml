@@ -11,6 +11,10 @@ name: Build pyinstaller executable
 on:
   push:
     branches: [master]
+    paths:
+      - "src/**"
+      - ".github/workflows/main.yml"
+      - "yt_dvr.spec"
   release:
     types: [published]
 
@@ -23,8 +27,8 @@ jobs:
       - name: Download ffmpeg and deno
         run: |
           Invoke-WebRequest -Uri https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip -OutFile ffmpeg.zip
-          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg
-          copy ffmpeg\bin build
+          Expand-Archive ffmpeg.zip -DestinationPath .
+          Move-Item ffmpeg-n9.0-latest-win64-gpl-shared-9.0\bin build
           Invoke-WebRequest -Uri https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip -OutFile deno.zip
           Expand-Archive deno.zip -DestinationPath build
           

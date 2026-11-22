@@ -87,7 +87,7 @@ A Dockerfile is also provided for use in a Docker container. Use the `/api/healt
 Install `yt-dlp[default]` for EJS support. Download FFmpeg (static) and Deno to `build`.
 
 ```sh
-pyinstaller src/yt_dvr/__main__.py -F -p src --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi --collect-all kickpython --collect-all dateutil --collect-all pytchat --collect-all ld_eventsource
+pyinstaller src/yt_dvr/__main__.py -F -p src --collect-submodules yt_dvr --add-binary build\ffmpeg.exe:. --add-binary build\deno.exe:. --collect-all curl_cffi --collect-all kickpython --collect-all dateutil --collect-all pytchat-ng --collect-all ld_eventsource
 ```
 
 ## License
