@@ -6,7 +6,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Build pyinstaller executable
 
 on:
   push:
@@ -22,9 +22,11 @@ jobs:
 
       - name: Download ffmpeg and deno
         run: |
-          Invoke-WebRequest -Uri https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip | Expand-Archive -DestinationPath ffmpeg
+          Invoke-WebRequest -Uri https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-win64-gpl-shared-9.0.zip -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg
           copy ffmpeg\bin build
-          Invoke-WebRequest -Uri https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip | Expand-Archive -DestinationPath build
+          Invoke-WebRequest -Uri https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip -OutFile deno.zip
+          Expand-Archive deno.zip -DestinationPath build
           
       - name: Create Executable
         uses: sayyid5416/pyinstaller@v1
